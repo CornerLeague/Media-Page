@@ -2,7 +2,7 @@ export const AISummarySection = () => {
   return <section className="flex-1 flex items-center justify-center px-6 md:px-8 lg:px-12">
       <div className="max-w-2xl text-center space-y-4">
         <h1 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl text-foreground leading-tight">
-          <span className="block text-secondary mt-2">
+          <span className="block text-secondary mt-2 text-xl md:text-2xl lg:text-3xl">
             Integrated Calendar
           </span>
         </h1>

@@ -8,7 +8,7 @@ export const AISummarySection = () => {
         </h1>
         
         <div className="max-w-md mx-auto">
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 mt-6">
             {/* Game 1 */}
             <div className="flex items-center justify-between bg-card/50 rounded-lg px-4 py-3 border border-border/20">
               <div className="flex items-center gap-3">

@@ -52,7 +52,7 @@ export const SportsFeedSection = () => {
           </p>
         </div>
         
-        <h2 className="font-display font-semibold text-base text-foreground mb-4">
+        <h2 className="font-display font-semibold text-base text-foreground mb-4 mt-8">
           Latest Updates
         </h2>
       </div>

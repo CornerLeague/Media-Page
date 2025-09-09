@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SportsFeedCard } from "./SportsFeedCard";
 import { ChevronDown } from "lucide-react";
 import nflHero from "@/assets/nfl-hero.jpg";
@@ -9,8 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+
 export const SportsFeedSection = () => {
   const [selectedCategory, setSelectedCategory] = useState("Latest Stories");
   const { toast } = useToast();
@@ -165,7 +166,9 @@ export const SportsFeedSection = () => {
   };
 
   const currentFeedItems = feedData[selectedCategory as keyof typeof feedData] || feedData["Latest Stories"];
-  return <section className="w-full">
+
+  return (
+    <section className="w-full">
       <div className="px-6 md:px-8 lg:px-12">
         {/* AI Summary Section */}
         <div className="mb-6 mt-12">
@@ -185,19 +188,39 @@ export const SportsFeedSection = () => {
             </h2>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => handleCategorySelect("Latest Stories")}>Latest Stories</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleCategorySelect("Injuries")}>Injuries</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleCategorySelect("Roster Moves")}>Roster Moves</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleCategorySelect("Trade Rumors")}>Trade Rumors</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleCategorySelect("Depth Chart")}>Depth Chart</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCategorySelect("Latest Stories")}>
+              Latest Stories
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCategorySelect("Injuries")}>
+              Injuries
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCategorySelect("Roster Moves")}>
+              Roster Moves
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCategorySelect("Trade Rumors")}>
+              Trade Rumors
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCategorySelect("Depth Chart")}>
+              Depth Chart
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       
       <div className="overflow-x-auto scrollbar-hide">
         <div className="flex gap-4 px-6 md:px-8 lg:px-12 pb-4">
-          {currentFeedItems.map(item => <SportsFeedCard key={item.id} title={item.title} description={item.description} image={item.image} time={item.time} category={item.category} />)}
+          {currentFeedItems.map(item => (
+            <SportsFeedCard 
+              key={item.id} 
+              title={item.title} 
+              description={item.description} 
+              image={item.image} 
+              time={item.time} 
+              category={item.category} 
+            />
+          ))}
         </div>
       </div>
-    </section>;
+    </section>
+  );
 };

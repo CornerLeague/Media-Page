@@ -3,6 +3,12 @@ import { ChevronDown } from "lucide-react";
 import nflHero from "@/assets/nfl-hero.jpg";
 import nbaAction from "@/assets/nba-action.jpg";
 import soccerAction from "@/assets/soccer-action.jpg";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 export const SportsFeedSection = () => {
   const feedItems = [{
     id: 1,
@@ -45,10 +51,20 @@ export const SportsFeedSection = () => {
           </p>
         </div>
         
-        <h2 className="font-display font-semibold text-base text-foreground mb-4 mt-20 flex items-center gap-2">
-          Latest Stories
-          <ChevronDown className="w-4 h-4" />
-        </h2>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <h2 className="font-display font-semibold text-base text-foreground mb-4 mt-20 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
+              Latest Stories
+              <ChevronDown className="w-4 h-4" />
+            </h2>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem>Injuries</DropdownMenuItem>
+            <DropdownMenuItem>Roster Moves</DropdownMenuItem>
+            <DropdownMenuItem>Trade Rumors</DropdownMenuItem>
+            <DropdownMenuItem>Depth Chart</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       <div className="overflow-x-auto scrollbar-hide">

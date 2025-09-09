@@ -43,7 +43,7 @@ export const SportsFeedSection = () => {
     <section className="w-full">
       <div className="px-6 md:px-8 lg:px-12">
         {/* AI Summary Section */}
-        <div className="mb-6">
+        <div className="mb-6 mt-20">
           <h2 className="font-display font-semibold text-base text-foreground mb-3">
             AI Summary
           </h2>

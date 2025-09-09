@@ -10,7 +10,7 @@ interface SportsFeedCardProps {
 
 export const SportsFeedCard = ({ title, description, image, time, category }: SportsFeedCardProps) => {
   return (
-    <Card className="w-80 flex-shrink-0 overflow-hidden border-0 shadow-sm bg-card/50 backdrop-blur-sm hover:bg-card transition-all duration-normal">
+    <Card className="w-80 flex-shrink-0 overflow-hidden border-0 shadow-sm bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-normal">
       <div className="relative h-48 overflow-hidden">
         <img 
           src={image} 

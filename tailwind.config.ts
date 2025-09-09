@@ -13,6 +13,22 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        'display': 'var(--font-display)',
+        'body': 'var(--font-body)',
+      },
+      spacing: {
+        'section': 'var(--space-section)',
+        'component': 'var(--space-component)', 
+        'element': 'var(--space-element)',
+      },
+      transitionDuration: {
+        'fast': 'var(--duration-fast)',
+        'normal': 'var(--duration-normal)',
+      },
+      transitionTimingFunction: {
+        'ease-in-out': 'var(--ease-in-out)',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

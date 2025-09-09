@@ -1,6 +1,7 @@
 import { TopNavBar } from "@/components/TopNavBar";
 import { AISummarySection } from "@/components/AISummarySection";
 import { SportsFeedSection } from "@/components/SportsFeedSection";
+import { BestSeatsSection } from "@/components/BestSeatsSection";
 
 const Index = () => {
   return (
@@ -16,6 +17,7 @@ const Index = () => {
         {/* Sports Feed - Fixed at bottom */}
         <div className="mt-auto pb-8">
           <SportsFeedSection />
+          <BestSeatsSection />
         </div>
       </div>
     </div>

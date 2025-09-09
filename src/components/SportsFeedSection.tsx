@@ -1,4 +1,5 @@
 import { SportsFeedCard } from "./SportsFeedCard";
+import { ChevronDown } from "lucide-react";
 import nflHero from "@/assets/nfl-hero.jpg";
 import nbaAction from "@/assets/nba-action.jpg";
 import soccerAction from "@/assets/soccer-action.jpg";
@@ -44,7 +45,10 @@ export const SportsFeedSection = () => {
           </p>
         </div>
         
-        <h2 className="font-display font-semibold text-base text-foreground mb-4 mt-20">Latest Stories</h2>
+        <h2 className="font-display font-semibold text-base text-foreground mb-4 mt-20 flex items-center gap-2">
+          Latest Stories
+          <ChevronDown className="w-4 h-4" />
+        </h2>
       </div>
       
       <div className="overflow-x-auto scrollbar-hide">

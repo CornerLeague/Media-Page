@@ -5,7 +5,7 @@ export const TopNavBar = () => {
     <nav className="w-full h-16 flex items-center justify-between px-6 md:px-8 lg:px-12">
       {/* Left side - League/Brand */}
       <div className="flex items-center">
-        <h1 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl text-foreground">
+        <h1 className="font-display font-bold text-2xl md:text-3xl lg:text-4xl text-foreground">
           NFL
         </h1>
       </div>

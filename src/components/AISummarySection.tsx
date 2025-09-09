@@ -7,9 +7,35 @@ export const AISummarySection = () => {
           </span>
         </h1>
         
-        <p className="font-body text-muted-foreground text-sm md:text-base max-w-lg mx-auto leading-relaxed">
-          Customize notification settings to suit your preferences and avoid distractions
-        </p>
+        <div className="max-w-md mx-auto">
+          <div className="grid grid-cols-1 gap-3">
+            {/* Game 1 */}
+            <div className="flex items-center justify-between bg-card/50 rounded-lg px-4 py-3 border border-border/20">
+              <div className="flex items-center gap-3">
+                <span className="font-display font-medium text-foreground text-sm">KC</span>
+                <span className="font-display font-bold text-foreground text-lg">31</span>
+              </div>
+              <span className="font-body text-muted-foreground text-xs">FINAL</span>
+              <div className="flex items-center gap-3">
+                <span className="font-display font-bold text-foreground text-lg">17</span>
+                <span className="font-display font-medium text-foreground text-sm">BUF</span>
+              </div>
+            </div>
+            
+            {/* Game 2 */}
+            <div className="flex items-center justify-between bg-card/50 rounded-lg px-4 py-3 border border-border/20">
+              <div className="flex items-center gap-3">
+                <span className="font-display font-medium text-foreground text-sm">LAL</span>
+                <span className="font-display font-bold text-foreground text-lg">108</span>
+              </div>
+              <span className="font-body text-muted-foreground text-xs">3Q 7:42</span>
+              <div className="flex items-center gap-3">
+                <span className="font-display font-bold text-foreground text-lg">95</span>
+                <span className="font-display font-medium text-foreground text-sm">GSW</span>
+              </div>
+            </div>
+          </div>
+        </div>
         
         <div className="pt-4">
           

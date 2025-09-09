@@ -42,6 +42,16 @@ export const SportsFeedSection = () => {
   return (
     <section className="w-full">
       <div className="px-6 md:px-8 lg:px-12">
+        {/* AI Summary Section */}
+        <div className="mb-6">
+          <h2 className="font-display font-semibold text-base text-foreground mb-3">
+            AI Summary
+          </h2>
+          <p className="font-body text-muted-foreground text-sm leading-relaxed">
+            Today's key highlights: Chiefs advance with dominant performance, Lakers exploring trade options ahead of deadline, and World Cup qualifiers deliver dramatic finishes across Europe.
+          </p>
+        </div>
+        
         <h2 className="font-display font-semibold text-base text-foreground mb-4">
           Latest Updates
         </h2>

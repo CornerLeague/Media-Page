@@ -9,6 +9,7 @@ export const TopNavBar = () => {
         <div 
           data-us-project="KHxxB8NGQDs95HP5DSf8" 
           style={{width: '200px', height: '80px'}}
+          className="bg-primary/20 border-2 border-primary rounded-lg"
         />
         <script 
           type="text/javascript"

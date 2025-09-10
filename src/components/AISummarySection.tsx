@@ -2,7 +2,7 @@ export const AISummarySection = () => {
   return <section className="flex-1 flex items-center justify-center px-4 sm:px-6 md:px-8 lg:px-12 py-8">
       <div className="max-w-2xl text-center space-y-4 w-full">
         <h1 className="font-display font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-foreground leading-tight">
-          <span className="block text-secondary mt-2 text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold">STEELERS</span>
+          <span className="block text-secondary mt-2 text-6xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[10rem] font-bold">STEELERS</span>
         </h1>
         
         <div className="max-w-sm sm:max-w-md mx-auto w-full">

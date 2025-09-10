@@ -6,9 +6,16 @@ export const TopNavBar = () => {
     <nav className="w-full h-16 flex items-center justify-between px-6 md:px-8 lg:px-12">
       {/* Left side - League/Brand */}
       <div className="flex items-center gap-2">
-        <h1 className="font-display font-bold text-2xl md:text-3xl lg:text-4xl text-foreground">
-          NFL
-        </h1>
+        <div 
+          data-us-project="KHxxB8NGQDs95HP5DSf8" 
+          style={{width: '200px', height: '80px'}}
+        />
+        <script 
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `!function(){if(!window.UnicornStudio){window.UnicornStudio={isInitialized:!1};var i=document.createElement("script");i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.30/dist/unicornStudio.umd.js",i.onload=function(){window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)},(document.head || document.body).appendChild(i)}}();`
+          }}
+        />
         <ChevronDown className="h-6 w-6 text-foreground" />
       </div>
 

@@ -15,7 +15,13 @@ export const TopNavBar = () => {
         <h1 className="font-display font-bold text-2xl md:text-3xl lg:text-4xl text-foreground">
           NFL
         </h1>
-        <ChevronDown className="h-6 w-6 text-foreground" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <ChevronDown className="h-6 w-6 text-foreground cursor-pointer" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Right side - Profile */}

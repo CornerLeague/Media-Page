@@ -169,7 +169,7 @@ export const SportsFeedSection = () => {
 
   return (
     <section className="w-full">
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12">
+      <div className="px-6 md:px-8 lg:px-12">
         {/* AI Summary Section */}
         <div className="mb-6 mt-12">
           <h2 className="font-display font-semibold text-base text-foreground mb-3">
@@ -208,7 +208,7 @@ export const SportsFeedSection = () => {
       </div>
       
       <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-3 sm:gap-4 px-4 sm:px-6 md:px-8 lg:px-12 pb-4">
+        <div className="flex gap-4 px-6 md:px-8 lg:px-12 pb-4">
           {currentFeedItems.map(item => (
             <SportsFeedCard 
               key={item.id} 

@@ -1,5 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const TopNavBar = () => {
   return (
@@ -14,12 +20,24 @@ export const TopNavBar = () => {
 
       {/* Right side - Profile */}
       <div className="flex items-center">
-        <Avatar className="h-10 w-10 border-2 border-border/20">
-          <AvatarImage src="" alt="Profile" />
-          <AvatarFallback className="bg-muted text-muted-foreground font-body font-medium">
-            U
-          </AvatarFallback>
-        </Avatar>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Avatar className="h-10 w-10 border-2 border-border/20 cursor-pointer">
+              <AvatarImage src="" alt="Profile" />
+              <AvatarFallback className="bg-muted text-muted-foreground font-body font-medium">
+                U
+              </AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>
+              Account Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              Log Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
   );

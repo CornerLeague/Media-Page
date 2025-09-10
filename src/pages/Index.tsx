@@ -11,12 +11,12 @@ const Index = () => {
       <TopNavBar />
       
       {/* Main Content Area */}
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
-        {/* AI Summary - Takes most of the space */}
+      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+        {/* AI Summary - Takes available space */}
         <AISummarySection />
         
-        {/* Sports Feed - Fixed at bottom */}
-        <div className="mt-auto pb-8">
+        {/* Sports Feed - Bottom sections */}
+        <div className="pb-4 sm:pb-8">
           <SportsFeedSection />
           <BestSeatsSection />
           <FanExperiencesSection />

@@ -57,17 +57,17 @@ export const BestSeatsSection = () => {
   ];
 
   return (
-    <section className="w-full mt-8">
-      <div className="px-6 md:px-8 lg:px-12">
+    <section className="w-full mt-6 sm:mt-8">
+      <div className="px-4 sm:px-6 md:px-8 lg:px-12">
         <h2 className="font-display font-semibold text-base text-foreground mb-4">
           Best Seats
         </h2>
       </div>
       
       <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-4 px-6 md:px-8 lg:px-12 pb-4">
+        <div className="flex gap-3 sm:gap-4 px-4 sm:px-6 md:px-8 lg:px-12 pb-4">
           {bestSeats.map(seat => (
-            <Card key={seat.id} className="w-80 flex-shrink-0 overflow-hidden border-0 shadow-sm bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-normal cursor-pointer">
+            <Card key={seat.id} className="w-72 sm:w-80 flex-shrink-0 overflow-hidden border-0 shadow-sm bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-normal cursor-pointer">
               <div className="relative h-32 overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <MapPin className="w-12 h-12 text-primary/40" />

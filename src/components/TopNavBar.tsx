@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const TopNavBar = () => {
   return (
@@ -24,8 +25,9 @@ export const TopNavBar = () => {
         </DropdownMenu>
       </div>
 
-      {/* Right side - Profile */}
-      <div className="flex items-center">
+      {/* Right side - Theme Toggle & Profile */}
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Avatar className="h-10 w-10 border-2 border-border/20 cursor-pointer">

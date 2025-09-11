@@ -73,8 +73,8 @@ Based on uploaded reference images with precise color matching
   }
 
   .dark {
-    /* Dark mode adjustments - dark stone grey */
-    --background: 220 8% 18%; /* Dark stone grey with low saturation */
+    /* Dark mode adjustments - medium stone grey */
+    --background: 220 6% 32%; /* Medium stone grey matching uploaded color */
     --foreground: 0 0% 98%; /* Near white text */
 
     --card: 0 0% 12%; /* Dark card background */

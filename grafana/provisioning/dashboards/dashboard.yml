@@ -1,0 +1,17 @@
+# =================================================================
+# Grafana Dashboard Provisioning Configuration
+# Corner League Media - Development Environment
+# =================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Corner League Media Dashboards'
+    orgId: 1
+    folder: 'Corner League Media'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

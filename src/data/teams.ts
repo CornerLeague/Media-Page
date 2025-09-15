@@ -1,0 +1,373 @@
+import { Team } from '@/lib/types/onboarding-types';
+
+export const TEAMS: Team[] = [
+  // NFL Teams
+  {
+    id: 'chiefs',
+    name: 'Chiefs',
+    market: 'Kansas City',
+    sportId: 'nfl',
+    league: 'NFL',
+    logo: '🏈',
+    primaryColor: '#E31837',
+    secondaryColor: '#FFB81C',
+    abbreviation: 'KC',
+  },
+  {
+    id: 'cowboys',
+    name: 'Cowboys',
+    market: 'Dallas',
+    sportId: 'nfl',
+    league: 'NFL',
+    logo: '🏈',
+    primaryColor: '#041E42',
+    secondaryColor: '#869397',
+    abbreviation: 'DAL',
+  },
+  {
+    id: 'patriots',
+    name: 'Patriots',
+    market: 'New England',
+    sportId: 'nfl',
+    league: 'NFL',
+    logo: '🏈',
+    primaryColor: '#002244',
+    secondaryColor: '#C60C30',
+    abbreviation: 'NE',
+  },
+  {
+    id: 'packers',
+    name: 'Packers',
+    market: 'Green Bay',
+    sportId: 'nfl',
+    league: 'NFL',
+    logo: '🏈',
+    primaryColor: '#203731',
+    secondaryColor: '#FFB612',
+    abbreviation: 'GB',
+  },
+  {
+    id: '49ers',
+    name: '49ers',
+    market: 'San Francisco',
+    sportId: 'nfl',
+    league: 'NFL',
+    logo: '🏈',
+    primaryColor: '#AA0000',
+    secondaryColor: '#B3995D',
+    abbreviation: 'SF',
+  },
+
+  // NBA Teams
+  {
+    id: 'lakers',
+    name: 'Lakers',
+    market: 'Los Angeles',
+    sportId: 'nba',
+    league: 'NBA',
+    logo: '🏀',
+    primaryColor: '#552583',
+    secondaryColor: '#FDB927',
+    abbreviation: 'LAL',
+  },
+  {
+    id: 'warriors',
+    name: 'Warriors',
+    market: 'Golden State',
+    sportId: 'nba',
+    league: 'NBA',
+    logo: '🏀',
+    primaryColor: '#1D428A',
+    secondaryColor: '#FFC72C',
+    abbreviation: 'GSW',
+  },
+  {
+    id: 'celtics',
+    name: 'Celtics',
+    market: 'Boston',
+    sportId: 'nba',
+    league: 'NBA',
+    logo: '🏀',
+    primaryColor: '#007A33',
+    secondaryColor: '#BA9653',
+    abbreviation: 'BOS',
+  },
+  {
+    id: 'heat',
+    name: 'Heat',
+    market: 'Miami',
+    sportId: 'nba',
+    league: 'NBA',
+    logo: '🏀',
+    primaryColor: '#98002E',
+    secondaryColor: '#F9A01B',
+    abbreviation: 'MIA',
+  },
+  {
+    id: 'bulls',
+    name: 'Bulls',
+    market: 'Chicago',
+    sportId: 'nba',
+    league: 'NBA',
+    logo: '🏀',
+    primaryColor: '#CE1141',
+    secondaryColor: '#000000',
+    abbreviation: 'CHI',
+  },
+
+  // MLB Teams
+  {
+    id: 'yankees',
+    name: 'Yankees',
+    market: 'New York',
+    sportId: 'mlb',
+    league: 'MLB',
+    logo: '⚾',
+    primaryColor: '#132448',
+    secondaryColor: '#C4CED4',
+    abbreviation: 'NYY',
+  },
+  {
+    id: 'dodgers',
+    name: 'Dodgers',
+    market: 'Los Angeles',
+    sportId: 'mlb',
+    league: 'MLB',
+    logo: '⚾',
+    primaryColor: '#005A9C',
+    secondaryColor: '#EF3E42',
+    abbreviation: 'LAD',
+  },
+  {
+    id: 'red-sox',
+    name: 'Red Sox',
+    market: 'Boston',
+    sportId: 'mlb',
+    league: 'MLB',
+    logo: '⚾',
+    primaryColor: '#BD3039',
+    secondaryColor: '#0C2340',
+    abbreviation: 'BOS',
+  },
+  {
+    id: 'giants',
+    name: 'Giants',
+    market: 'San Francisco',
+    sportId: 'mlb',
+    league: 'MLB',
+    logo: '⚾',
+    primaryColor: '#FD5A1E',
+    secondaryColor: '#27251F',
+    abbreviation: 'SF',
+  },
+  {
+    id: 'cubs',
+    name: 'Cubs',
+    market: 'Chicago',
+    sportId: 'mlb',
+    league: 'MLB',
+    logo: '⚾',
+    primaryColor: '#0E3386',
+    secondaryColor: '#CC3433',
+    abbreviation: 'CHC',
+  },
+
+  // NHL Teams
+  {
+    id: 'rangers',
+    name: 'Rangers',
+    market: 'New York',
+    sportId: 'nhl',
+    league: 'NHL',
+    logo: '🏒',
+    primaryColor: '#0038A8',
+    secondaryColor: '#CE1126',
+    abbreviation: 'NYR',
+  },
+  {
+    id: 'bruins',
+    name: 'Bruins',
+    market: 'Boston',
+    sportId: 'nhl',
+    league: 'NHL',
+    logo: '🏒',
+    primaryColor: '#FFB81C',
+    secondaryColor: '#000000',
+    abbreviation: 'BOS',
+  },
+  {
+    id: 'blackhawks',
+    name: 'Blackhawks',
+    market: 'Chicago',
+    sportId: 'nhl',
+    league: 'NHL',
+    logo: '🏒',
+    primaryColor: '#CF0A2C',
+    secondaryColor: '#000000',
+    abbreviation: 'CHI',
+  },
+  {
+    id: 'penguins',
+    name: 'Penguins',
+    market: 'Pittsburgh',
+    sportId: 'nhl',
+    league: 'NHL',
+    logo: '🏒',
+    primaryColor: '#000000',
+    secondaryColor: '#CEB888',
+    abbreviation: 'PIT',
+  },
+  {
+    id: 'maple-leafs',
+    name: 'Maple Leafs',
+    market: 'Toronto',
+    sportId: 'nhl',
+    league: 'NHL',
+    logo: '🏒',
+    primaryColor: '#003E7E',
+    secondaryColor: '#FFFFFF',
+    abbreviation: 'TOR',
+  },
+
+  // MLS Teams
+  {
+    id: 'lafc',
+    name: 'LAFC',
+    market: 'Los Angeles',
+    sportId: 'mls',
+    league: 'MLS',
+    logo: '⚽',
+    primaryColor: '#000000',
+    secondaryColor: '#C39E6D',
+    abbreviation: 'LAFC',
+  },
+  {
+    id: 'inter-miami',
+    name: 'Inter Miami CF',
+    market: 'Miami',
+    sportId: 'mls',
+    league: 'MLS',
+    logo: '⚽',
+    primaryColor: '#F7B5CD',
+    secondaryColor: '#231F20',
+    abbreviation: 'MIA',
+  },
+  {
+    id: 'atlanta-united',
+    name: 'Atlanta United FC',
+    market: 'Atlanta',
+    sportId: 'mls',
+    league: 'MLS',
+    logo: '⚽',
+    primaryColor: '#80001C',
+    secondaryColor: '#000000',
+    abbreviation: 'ATL',
+  },
+  {
+    id: 'seattle-sounders',
+    name: 'Sounders FC',
+    market: 'Seattle',
+    sportId: 'mls',
+    league: 'MLS',
+    logo: '⚽',
+    primaryColor: '#5D9741',
+    secondaryColor: '#1D5BA4',
+    abbreviation: 'SEA',
+  },
+  {
+    id: 'nycfc',
+    name: 'NYC FC',
+    market: 'New York City',
+    sportId: 'mls',
+    league: 'MLS',
+    logo: '⚽',
+    primaryColor: '#6CABDD',
+    secondaryColor: '#041E42',
+    abbreviation: 'NYC',
+  },
+
+  // College Football Teams (sample)
+  {
+    id: 'alabama',
+    name: 'Crimson Tide',
+    market: 'Alabama',
+    sportId: 'college-football',
+    league: 'SEC',
+    logo: '🏈',
+    primaryColor: '#9E1B32',
+    secondaryColor: '#828A8F',
+    abbreviation: 'ALA',
+  },
+  {
+    id: 'michigan',
+    name: 'Wolverines',
+    market: 'Michigan',
+    sportId: 'college-football',
+    league: 'Big Ten',
+    logo: '🏈',
+    primaryColor: '#00274C',
+    secondaryColor: '#FFCB05',
+    abbreviation: 'MICH',
+  },
+  {
+    id: 'georgia',
+    name: 'Bulldogs',
+    market: 'Georgia',
+    sportId: 'college-football',
+    league: 'SEC',
+    logo: '🏈',
+    primaryColor: '#BA0C2F',
+    secondaryColor: '#000000',
+    abbreviation: 'UGA',
+  },
+  {
+    id: 'ohio-state',
+    name: 'Buckeyes',
+    market: 'Ohio State',
+    sportId: 'college-football',
+    league: 'Big Ten',
+    logo: '🏈',
+    primaryColor: '#BB0000',
+    secondaryColor: '#C4C4C4',
+    abbreviation: 'OSU',
+  },
+  {
+    id: 'clemson',
+    name: 'Tigers',
+    market: 'Clemson',
+    sportId: 'college-football',
+    league: 'ACC',
+    logo: '🏈',
+    primaryColor: '#F56600',
+    secondaryColor: '#522D80',
+    abbreviation: 'CLEM',
+  },
+];
+
+export const getTeamsBySport = (sportId: string): Team[] => {
+  return TEAMS.filter(team => team.sportId === sportId);
+};
+
+export const getTeamsByLeague = (league: string): Team[] => {
+  return TEAMS.filter(team => team.league === league);
+};
+
+export const getTeamById = (teamId: string): Team | undefined => {
+  return TEAMS.find(team => team.id === teamId);
+};
+
+export const searchTeams = (query: string, sportId?: string): Team[] => {
+  const lowercaseQuery = query.toLowerCase();
+  let teams = sportId ? getTeamsBySport(sportId) : TEAMS;
+
+  return teams.filter(team =>
+    team.name.toLowerCase().includes(lowercaseQuery) ||
+    team.market.toLowerCase().includes(lowercaseQuery) ||
+    team.abbreviation.toLowerCase().includes(lowercaseQuery)
+  );
+};
+
+export const getPopularTeams = (sportId?: string, limit: number = 5): Team[] => {
+  const teams = sportId ? getTeamsBySport(sportId) : TEAMS;
+  return teams.slice(0, limit);
+};

@@ -1,0 +1,136 @@
+# =================================================================
+# OpenTelemetry Collector Configuration
+# Corner League Media - Development Environment
+# =================================================================
+
+receivers:
+  # OTLP receiver for traces, metrics, and logs
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://localhost:8080"
+            - "http://localhost:3000"
+            - "http://localhost"
+
+  # Prometheus scraping for metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'corner-league-backend'
+          static_configs:
+            - targets: ['backend:8000']
+          scrape_interval: 30s
+          metrics_path: /metrics
+
+        - job_name: 'otel-collector'
+          static_configs:
+            - targets: ['0.0.0.0:8888']
+          scrape_interval: 30s
+
+  # Host metrics (container metrics)
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      memory:
+      network:
+      process:
+
+processors:
+  # Batch processor for better performance
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # Resource processor to add service information
+  resource:
+    attributes:
+      - key: service.name
+        value: corner-league-media
+        action: insert
+      - key: service.version
+        value: 1.0.0
+        action: insert
+      - key: deployment.environment
+        value: development
+        action: insert
+
+  # Probabilistic sampling for traces (optional)
+  probabilistic_sampler:
+    sampling_percentage: 100 # 100% for development
+
+exporters:
+  # Jaeger exporter for traces
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # Prometheus exporter for metrics
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      environment: development
+
+  # Prometheus remote write (for Grafana)
+  prometheusremotewrite:
+    endpoint: "http://prometheus:9090/api/v1/write"
+    tls:
+      insecure: true
+
+  # Logging exporter for debugging
+  logging:
+    loglevel: debug
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # File exporter for persistence (optional)
+  file:
+    path: /tmp/otel-output.json
+
+service:
+  pipelines:
+    # Traces pipeline
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch, probabilistic_sampler]
+      exporters: [jaeger, logging]
+
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus, prometheusremotewrite, logging]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [logging, file]
+
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+    pprof:
+      endpoint: 0.0.0.0:1777
+    zpages:
+      endpoint: 0.0.0.0:55679
+
+  telemetry:
+    logs:
+      level: "debug"
+    metrics:
+      address: 0.0.0.0:8888

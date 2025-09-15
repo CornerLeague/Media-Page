@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "protect_sensitive",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect_sensitive.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "format_on_write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/format_on_write.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "semgrep_on_write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/semgrep_on_write.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

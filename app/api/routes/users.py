@@ -39,6 +39,13 @@ class TeamActionRequest(BaseModel):
     team_id: str
 
 
+class HomeDataResponse(BaseResponse):
+    """Home data response model."""
+
+    most_liked_team_id: str
+    user_teams: List[dict]
+
+
 @router.get(
     "/me",
     response_model=UserUpdateResponse,
@@ -76,6 +83,58 @@ async def get_my_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve user profile: {str(e)}"
+        )
+
+
+@router.get(
+    "/me/home",
+    response_model=HomeDataResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get user home dashboard data",
+    description="Get the current user's home dashboard data including most liked team and team preferences"
+)
+async def get_my_home_data(
+    current_user: CurrentUser = Depends(get_current_active_user),
+    user_service: UserService = Depends(get_user)
+):
+    """
+    Get current user's home dashboard data.
+
+    Returns:
+    - Most liked team ID (team with highest affinity score)
+    - List of user teams with affinity scores and basic info
+    """
+    try:
+        user_profile = await user_service.get_user_by_id(current_user.user_id)
+
+        if not user_profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User profile not found"
+            )
+
+        # Get user's teams and find most liked team
+        user_teams = await user_service.get_user_teams_with_affinity(current_user.user_id)
+
+        # Find the team with highest affinity score
+        most_liked_team_id = ""
+        if user_teams:
+            most_liked_team = max(user_teams, key=lambda x: x.get("affinity_score", 0))
+            most_liked_team_id = most_liked_team.get("team_id", "")
+
+        return HomeDataResponse(
+            success=True,
+            message="Home dashboard data retrieved successfully",
+            most_liked_team_id=most_liked_team_id,
+            user_teams=user_teams
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve home dashboard data: {str(e)}"
         )
 
 

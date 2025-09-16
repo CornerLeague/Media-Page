@@ -187,6 +187,59 @@ class UserService:
             logger.error(f"Error getting favorite teams for user {user_id}: {str(e)}")
             return []
 
+    async def get_user_teams_with_affinity(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get user's teams with affinity scores and basic info."""
+        try:
+            user = await self.get_user_by_id(user_id)
+            if not user or not user.preferences:
+                return []
+
+            favorite_teams = user.preferences.favorite_teams
+
+            # Mock team data with affinity scores (replace with actual database queries)
+            mock_teams_data = [
+                {
+                    "team_id": "team_1",
+                    "name": "Los Angeles Lakers",
+                    "affinity_score": 95
+                },
+                {
+                    "team_id": "team_2",
+                    "name": "Golden State Warriors",
+                    "affinity_score": 85
+                },
+                {
+                    "team_id": "team_3",
+                    "name": "Boston Celtics",
+                    "affinity_score": 75
+                }
+            ]
+
+            # Filter to only user's favorite teams and add realistic affinity scores
+            user_teams = []
+            for i, team_id in enumerate(favorite_teams):
+                # Use mock data if available, otherwise create basic team info
+                mock_team = next((t for t in mock_teams_data if t["team_id"] == team_id), None)
+                if mock_team:
+                    user_teams.append(mock_team)
+                else:
+                    # Create basic team info for teams not in mock data
+                    user_teams.append({
+                        "team_id": team_id,
+                        "name": f"Team {team_id}",
+                        "affinity_score": max(50, 100 - (i * 10))  # Decreasing affinity
+                    })
+
+            # If no favorite teams, return mock data as default
+            if not user_teams:
+                user_teams = mock_teams_data
+
+            return user_teams
+
+        except Exception as e:
+            logger.error(f"Error getting user teams with affinity for {user_id}: {str(e)}")
+            return []
+
     async def add_favorite_team(self, user_id: str, team_id: str) -> bool:
         """Add team to user's favorites."""
         try:

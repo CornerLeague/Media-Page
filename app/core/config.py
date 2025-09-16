@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Corner League Media API"
     VERSION: str = "1.0.0"
     DESCRIPTION: str = "FastAPI backend for Corner League Media sports platform"
-    DEBUG: bool = False
+    DEBUG: bool = True  # Set to True for development
 
     # Server
     HOST: str = "0.0.0.0"
@@ -25,8 +25,12 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:8080"
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:8082",
         "http://localhost:3000",
         "http://127.0.0.1:8080",
+        "http://127.0.0.1:8081",
+        "http://127.0.0.1:8082",
         "http://127.0.0.1:3000"
     ]
 

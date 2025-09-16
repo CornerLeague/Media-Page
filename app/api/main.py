@@ -72,7 +72,7 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
-        openapi_url=f"{settings.API_V1_STR}/openapi.json"
+        openapi_url="/openapi.json" if settings.DEBUG else None
     )
 
     # Add middleware

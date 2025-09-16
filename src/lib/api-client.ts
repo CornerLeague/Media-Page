@@ -474,7 +474,7 @@ export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
       queryKey: ['team', 'dashboard', teamId],
       queryFn: () => apiClient.getTeamDashboard(teamId),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      enabled: clerkAuth?.isSignedIn ?? false && !!teamId,
+      enabled: (clerkAuth?.isSignedIn ?? false) && !!teamId,
     }),
   };
 };

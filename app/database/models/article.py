@@ -8,7 +8,7 @@ from sqlalchemy import (
     Enum, Integer, Numeric, String, Text
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import BaseModel, SearchableMixin
 from .enums import ArticleStatus, ContentCategory
@@ -173,6 +173,21 @@ class Article(BaseModel, SearchableMixin):
         TSVECTOR,
         nullable=True,
         doc="Full-text search vector (computed)"
+    )
+
+    # Relationships
+    classifications: Mapped[List["ArticleClassification"]] = relationship(
+        "ArticleClassification",
+        back_populates="article",
+        cascade="all, delete-orphan",
+        doc="AI classifications for this article"
+    )
+
+    entities: Mapped[List["ArticleEntity"]] = relationship(
+        "ArticleEntity",
+        back_populates="article",
+        cascade="all, delete-orphan",
+        doc="Named entities extracted from this article"
     )
 
     @property

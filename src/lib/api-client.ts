@@ -124,36 +124,100 @@ export interface SportsFeedItem {
   externalUrl?: string;
 }
 
+// New Dashboard Types
+export interface GameScore {
+  gameId: string;
+  status: 'FINAL' | 'LIVE' | 'SCHEDULED';
+  home: {
+    id: string;
+    name?: string;
+    pts: number;
+  };
+  away: {
+    id: string;
+    name?: string;
+    pts: number;
+  };
+  period?: string;
+  timeRemaining?: string;
+}
+
+export interface RecentResult {
+  gameId: string;
+  result: 'W' | 'L' | 'T';
+  diff: number;
+  date: string;
+  opponent?: string;
+}
+
+export interface AISummary {
+  text: string;
+  generated_at: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  category: 'injuries' | 'roster' | 'trade' | 'general';
+  published_at: string;
+  summary?: string;
+  url?: string;
+}
+
+export interface DepthChartEntry {
+  position: string;
+  player_name: string;
+  depth_order: number;
+  jersey_number?: number;
+  experience?: string;
+}
+
+export interface TicketDeal {
+  provider: string;
+  price: number;
+  section: string;
+  deal_score: number;
+  game_date?: string;
+  quantity?: number;
+}
+
+export interface FanExperience {
+  type: 'watch_party' | 'tailgate' | 'viewing' | 'meetup';
+  title: string;
+  start_time: string;
+  location?: string;
+  description?: string;
+  attendees?: number;
+}
+
 export interface TeamDashboard {
   team: {
     id: string;
     name: string;
-    market: string;
-    league: string;
-    logo: string;
-    colors: {
+    market?: string;
+    league?: string;
+    logo?: string;
+    colors?: {
       primary: string;
       secondary: string;
     };
   };
-  stats: {
-    wins: number;
-    losses: number;
-    rank: number;
-    lastGame?: {
-      opponent: string;
-      score: string;
-      result: 'W' | 'L' | 'T';
-      date: string;
-    };
-    nextGame?: {
-      opponent: string;
-      date: string;
-      time: string;
-      venue: string;
-    };
-  };
-  recentNews: SportsFeedItem[];
+  latestScore?: GameScore;
+  recentResults: RecentResult[];
+  summary: AISummary;
+  news: NewsArticle[];
+  depthChart: DepthChartEntry[];
+  ticketDeals: TicketDeal[];
+  experiences: FanExperience[];
+}
+
+export interface HomeData {
+  most_liked_team_id: string;
+  user_teams: Array<{
+    team_id: string;
+    name: string;
+    affinity_score: number;
+  }>;
 }
 
 // HTTP Client Class
@@ -327,6 +391,11 @@ export class ApiClient {
     return this.request<SportsFeedItem[]>('/sports/personalized');
   }
 
+  // New Dashboard API Methods
+  async getHomeData(): Promise<HomeData> {
+    return this.request<HomeData>('/me/home');
+  }
+
   // Health Check
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return this.request<{ status: string; timestamp: string }>('/health', {
@@ -385,6 +454,14 @@ export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
       enabled: clerkAuth?.isSignedIn ?? false,
     }),
 
+    // Home dashboard queries
+    getHomeData: () => ({
+      queryKey: ['home', 'data'],
+      queryFn: () => apiClient.getHomeData(),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      enabled: clerkAuth?.isSignedIn ?? false,
+    }),
+
     // Sports feed queries
     getSportsFeed: (params?: Parameters<typeof apiClient.getSportsFeed>[0]) => ({
       queryKey: ['sports', 'feed', params],
@@ -397,7 +474,7 @@ export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
       queryKey: ['team', 'dashboard', teamId],
       queryFn: () => apiClient.getTeamDashboard(teamId),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      enabled: clerkAuth?.isSignedIn ?? false,
+      enabled: clerkAuth?.isSignedIn ?? false && !!teamId,
     }),
   };
 };

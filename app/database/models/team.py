@@ -145,6 +145,26 @@ class Team(BaseModel, SearchableMixin):
         doc="Team statistics by season"
     )
 
+    scores: Mapped[List["Score"]] = relationship(
+        "Score",
+        back_populates="team",
+        cascade="all, delete-orphan",
+        doc="Team scores in games"
+    )
+
+    depth_charts: Mapped[List["DepthChart"]] = relationship(
+        "DepthChart",
+        back_populates="team",
+        cascade="all, delete-orphan",
+        doc="Team depth chart information"
+    )
+
+    experiences: Mapped[List["Experience"]] = relationship(
+        "Experience",
+        back_populates="team",
+        doc="Fan experiences related to this team"
+    )
+
     # Constraints
     __table_args__ = (
         UniqueConstraint('name', 'league', name='uq_team_name_league'),

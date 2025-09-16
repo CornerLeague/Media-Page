@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 from sqlalchemy import (
     CheckConstraint, Enum, ForeignKey, Integer, String, Text, DateTime
@@ -137,6 +137,26 @@ class Game(BaseModel):
         foreign_keys=[away_team_id],
         back_populates="away_games",
         doc="Away team"
+    )
+
+    scores: Mapped[List["Score"]] = relationship(
+        "Score",
+        back_populates="game",
+        cascade="all, delete-orphan",
+        doc="Game scores for both teams"
+    )
+
+    ticket_deals: Mapped[List["TicketDeal"]] = relationship(
+        "TicketDeal",
+        back_populates="game",
+        cascade="all, delete-orphan",
+        doc="Ticket deals for this game"
+    )
+
+    experiences: Mapped[List["Experience"]] = relationship(
+        "Experience",
+        back_populates="game",
+        doc="Fan experiences related to this game"
     )
 
     # Constraints

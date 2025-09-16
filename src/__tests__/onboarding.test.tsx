@@ -9,6 +9,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -24,6 +25,37 @@ import { FirstTimeExperience } from '@/components/onboarding/FirstTimeExperience
 import { OnboardingStorage } from '@/lib/onboarding/localStorage';
 import { OnboardingValidator } from '@/lib/onboarding/validation';
 import { runAccessibilityAudit } from '@/lib/accessibility';
+
+// Mock Clerk hooks
+vi.mock('@clerk/clerk-react', () => ({
+  useUser: vi.fn(() => ({
+    user: {
+      id: 'test-user-id',
+      firstName: 'Test',
+      lastName: 'User',
+      primaryEmailAddress: { emailAddress: 'test@example.com' }
+    },
+    isLoaded: true
+  })),
+  useAuth: vi.fn(() => ({
+    getToken: vi.fn().mockResolvedValue('mock-token'),
+    isSignedIn: true
+  })),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
+
+// Mock accessibility audit to prevent slow tests
+vi.mock('@/lib/accessibility', async () => {
+  const actual = await vi.importActual('@/lib/accessibility') as any;
+  return {
+    ...actual,
+    runAccessibilityAudit: vi.fn().mockResolvedValue({
+      violations: [],
+      passes: [],
+      incomplete: []
+    })
+  };
+});
 
 // Test wrapper component
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -76,7 +108,7 @@ describe('Onboarding System', () => {
   beforeEach(() => {
     // Clear localStorage before each test
     localStorage.clear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('WelcomeScreen', () => {
@@ -118,15 +150,15 @@ describe('Onboarding System', () => {
       // Mock reduced motion preference
       Object.defineProperty(window, 'matchMedia', {
         writable: true,
-        value: jest.fn().mockImplementation(query => ({
+        value: vi.fn().mockImplementation(query => ({
           matches: query.includes('prefers-reduced-motion'),
           media: query,
           onchange: null,
-          addListener: jest.fn(),
-          removeListener: jest.fn(),
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn(),
-          dispatchEvent: jest.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
         })),
       });
 
@@ -357,10 +389,10 @@ describe('Onboarding System', () => {
         { id: 'step1', title: 'Step 1', description: 'First step', isCompleted: true, isRequired: true },
         { id: 'step2', title: 'Step 2', description: 'Second step', isCompleted: false, isRequired: true },
       ],
-      onNext: jest.fn(),
-      onBack: jest.fn(),
-      onSkip: jest.fn(),
-      onExit: jest.fn(),
+      onNext: vi.fn(),
+      onBack: vi.fn(),
+      onSkip: vi.fn(),
+      onExit: vi.fn(),
     };
 
     it('renders layout with proper navigation', () => {
@@ -418,8 +450,8 @@ describe('Onboarding System', () => {
   describe('FirstTimeExperience', () => {
     const mockProps = {
       isOpen: true,
-      onClose: jest.fn(),
-      onComplete: jest.fn(),
+      onClose: vi.fn(),
+      onComplete: vi.fn(),
       userPreferences: {
         sports: mockSportsPreferences,
         teams: mockTeamPreferences,
@@ -532,15 +564,15 @@ describe('Accessibility Features', () => {
     // Mock high contrast media query
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
-      value: jest.fn().mockImplementation(query => ({
+      value: vi.fn().mockImplementation(query => ({
         matches: query.includes('prefers-contrast: high'),
         media: query,
         onchange: null,
-        addListener: jest.fn(),
-        removeListener: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-        dispatchEvent: jest.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
       })),
     });
 

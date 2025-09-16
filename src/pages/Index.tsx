@@ -6,9 +6,12 @@ import { AISummarySection } from "@/components/AISummarySection";
 import { SportsFeedSection } from "@/components/SportsFeedSection";
 import { BestSeatsSection } from "@/components/BestSeatsSection";
 import { FanExperiencesSection } from "@/components/FanExperiencesSection";
+import { DepthChartSection } from "@/components/DepthChartSection";
 import { FirstTimeExperience } from "@/components/onboarding/FirstTimeExperience";
 import { OnboardingStorage } from "@/lib/onboarding/localStorage";
 import { useAuthenticatedApiClient } from "@/hooks/useAuthenticatedApiClient";
+import { useDashboard } from "@/hooks/useDashboard";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -16,6 +19,18 @@ const Index = () => {
   const { apiClient, isAuthenticated } = useAuthenticatedApiClient();
   const [showFirstTimeExperience, setShowFirstTimeExperience] = useState(false);
   const [userPreferences, setUserPreferences] = useState(null);
+  const { toast } = useToast();
+
+  // Get dashboard data using custom hook
+  const {
+    homeData,
+    teamDashboard,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+    refetchAll,
+    homeError,
+    teamError
+  } = useDashboard();
 
   // Check if user has completed onboarding
   useEffect(() => {
@@ -44,6 +59,17 @@ const Index = () => {
     }
   }, [navigate, isLoaded, isAuthenticated, user?.id]);
 
+  // Handle API errors with toast notifications
+  useEffect(() => {
+    if (dashboardError) {
+      toast({
+        title: "Dashboard Error",
+        description: "Unable to load dashboard data. Please try refreshing the page.",
+        variant: "destructive",
+      });
+    }
+  }, [dashboardError, toast]);
+
   const handleTutorialComplete = () => {
     localStorage.setItem(`corner-league-tutorial-seen-${user?.id}`, 'true');
     setShowFirstTimeExperience(false);
@@ -61,21 +87,52 @@ const Index = () => {
 
       {/* Main Content Area */}
       <div className="flex flex-col min-h-[calc(100vh-4rem)]">
-        {/* AI Summary - Takes available space */}
+        {/* AI Summary Section - Hero area with team name, summary, and scores */}
         <div data-section="ai-summary">
-          <AISummarySection />
+          <AISummarySection
+            teamDashboard={teamDashboard}
+            isLoading={dashboardLoading}
+            error={dashboardError}
+          />
         </div>
 
-        {/* Sports Feed - Bottom sections */}
+        {/* Dashboard Sections */}
         <div className="pb-4 sm:pb-8">
+          {/* Sports Feed Section - News articles */}
           <div data-section="sports-feed">
-            <SportsFeedSection />
+            <SportsFeedSection
+              teamDashboard={teamDashboard}
+              isLoading={dashboardLoading}
+              error={teamError}
+            />
           </div>
+
+          {/* Depth Chart Section - Team roster */}
+          <div data-section="depth-chart">
+            <DepthChartSection
+              depthChart={teamDashboard?.depthChart || []}
+              teamName={teamDashboard?.team.name}
+              isLoading={dashboardLoading}
+              error={teamError}
+            />
+          </div>
+
+          {/* Best Seats Section - Ticket deals */}
           <div data-section="best-seats">
-            <BestSeatsSection />
+            <BestSeatsSection
+              teamDashboard={teamDashboard}
+              isLoading={dashboardLoading}
+              error={teamError}
+            />
           </div>
+
+          {/* Fan Experiences Section */}
           <div data-section="fan-experiences">
-            <FanExperiencesSection />
+            <FanExperiencesSection
+              teamDashboard={teamDashboard}
+              isLoading={dashboardLoading}
+              error={teamError}
+            />
           </div>
         </div>
       </div>

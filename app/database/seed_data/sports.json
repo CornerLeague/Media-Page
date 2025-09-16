@@ -1,0 +1,168 @@
+[
+  {
+    "id": "nfl",
+    "name": "nfl",
+    "display_name": "National Football League",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "weeks": 18,
+        "starts": "September",
+        "ends": "January"
+      },
+      "playoffs": {
+        "weeks": 4,
+        "format": "single_elimination",
+        "teams": 14
+      },
+      "off_season": {
+        "draft": "April",
+        "free_agency": "March",
+        "training_camp": "July"
+      }
+    }
+  },
+  {
+    "id": "nba",
+    "name": "nba",
+    "display_name": "National Basketball Association",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "games": 82,
+        "starts": "October",
+        "ends": "April"
+      },
+      "playoffs": {
+        "rounds": 4,
+        "format": "best_of_seven",
+        "teams": 16
+      },
+      "off_season": {
+        "draft": "June",
+        "free_agency": "July",
+        "training_camp": "September"
+      }
+    }
+  },
+  {
+    "id": "mlb",
+    "name": "mlb",
+    "display_name": "Major League Baseball",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "games": 162,
+        "starts": "March",
+        "ends": "September"
+      },
+      "playoffs": {
+        "rounds": 4,
+        "format": "varying_series",
+        "teams": 12
+      },
+      "off_season": {
+        "draft": "July",
+        "free_agency": "November",
+        "spring_training": "February"
+      }
+    }
+  },
+  {
+    "id": "nhl",
+    "name": "nhl",
+    "display_name": "National Hockey League",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "games": 82,
+        "starts": "October",
+        "ends": "April"
+      },
+      "playoffs": {
+        "rounds": 4,
+        "format": "best_of_seven",
+        "teams": 16
+      },
+      "off_season": {
+        "draft": "June",
+        "free_agency": "July",
+        "training_camp": "September"
+      }
+    }
+  },
+  {
+    "id": "mls",
+    "name": "mls",
+    "display_name": "Major League Soccer",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "games": 34,
+        "starts": "February",
+        "ends": "October"
+      },
+      "playoffs": {
+        "rounds": 4,
+        "format": "single_elimination_and_series",
+        "teams": 14
+      },
+      "off_season": {
+        "draft": "January",
+        "transfer_windows": ["January-April", "July-August"],
+        "preseason": "January"
+      }
+    }
+  },
+  {
+    "id": "college_football",
+    "name": "college_football",
+    "display_name": "College Football",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "weeks": 12,
+        "starts": "August",
+        "ends": "November"
+      },
+      "playoffs": {
+        "teams": 12,
+        "format": "single_elimination",
+        "championship": "January"
+      },
+      "off_season": {
+        "recruiting": "year_round",
+        "transfer_portal": ["December-January", "April-May"],
+        "spring_practice": "March-April"
+      }
+    }
+  },
+  {
+    "id": "college_basketball",
+    "name": "college_basketball",
+    "display_name": "College Basketball",
+    "has_teams": true,
+    "season_structure": {
+      "regular_season": {
+        "games": "varies",
+        "starts": "November",
+        "ends": "March"
+      },
+      "playoffs": {
+        "march_madness": {
+          "teams": 68,
+          "format": "single_elimination"
+        },
+        "nit": {
+          "teams": 32,
+          "format": "single_elimination"
+        }
+      },
+      "off_season": {
+        "recruiting": "year_round",
+        "transfer_portal": ["March-May", "December-January"],
+        "summer_practice": "June-August"
+      }
+    }
+  }
+]

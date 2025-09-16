@@ -123,6 +123,13 @@ class User(BaseModel):
         doc="User's search activity"
     )
 
+    sport_prefs: Mapped[List["UserSportPref"]] = relationship(
+        "UserSportPref",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        doc="User's sport preferences with ranking"
+    )
+
     @property
     def full_name(self) -> Optional[str]:
         """Get user's full name."""

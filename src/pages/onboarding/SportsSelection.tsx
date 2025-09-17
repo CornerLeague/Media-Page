@@ -59,6 +59,23 @@ const SortableSportItem: React.FC<SortableSportItemProps> = ({
 
   const sportData = AVAILABLE_SPORTS.find(s => s.id === sport.sportId);
 
+  // Handle card click - toggle selection when clicking anywhere except drag handle
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't toggle if clicking on the drag handle
+    if ((e.target as HTMLElement).closest('[data-drag-handle]')) {
+      return;
+    }
+    onToggle(sport.sportId);
+  };
+
+  // Handle keyboard interaction for accessibility
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      onToggle(sport.sportId);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -67,31 +84,41 @@ const SortableSportItem: React.FC<SortableSportItemProps> = ({
         isDragging ? 'z-10 scale-105' : ''
       } transition-all duration-200`}
     >
-      <Card className={`cursor-pointer transition-all ${
-        isSelected ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/50'
-      } ${isDragging ? 'shadow-lg' : ''} active:scale-[0.98]`}>
+      <Card
+        className={`cursor-pointer transition-all ${
+          isSelected ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/50'
+        } ${isDragging ? 'shadow-lg' : ''} active:scale-[0.98]`}
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
+        tabIndex={0}
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label={`${isSelected ? 'Deselect' : 'Select'} ${sport.name} (position ${sport.rank})`}
+      >
         <CardContent className={`${isTouchDevice ? 'p-5' : 'p-4'} min-h-[60px] flex items-center`}>
           <div className="flex items-center space-x-3 w-full">
             {/* Drag handle */}
             <button
               {...attributes}
               {...listeners}
+              data-drag-handle="true"
               className={`text-muted-foreground hover:text-foreground touch-manipulation ${
                 isTouchDevice ? 'p-2 -m-2' : ''
-              }`}
+              } focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded`}
               aria-label={`Reorder ${sport.name}`}
               style={{ touchAction: 'none' }}
+              onClick={(e) => e.stopPropagation()} // Prevent card click when dragging
             >
               <GripVertical className={`${isTouchDevice ? 'h-5 w-5' : 'h-4 w-4'}`} />
             </button>
 
             {/* Sport icon */}
-            <div className="text-2xl">
+            <div className="text-2xl pointer-events-none">
               {sportData?.icon || '🏆'}
             </div>
 
             {/* Sport info */}
-            <div className="flex-1">
+            <div className="flex-1 pointer-events-none">
               <div className="flex items-center space-x-2">
                 <h3 className="font-semibold">{sport.name}</h3>
                 {sport.hasTeams && (
@@ -106,12 +133,12 @@ const SortableSportItem: React.FC<SortableSportItemProps> = ({
               </p>
             </div>
 
-            {/* Selection checkbox */}
-            <div className={`${isTouchDevice ? 'p-2 -m-2' : ''} touch-manipulation`}>
+            {/* Selection checkbox - visual indicator only */}
+            <div className={`${isTouchDevice ? 'p-2 -m-2' : ''} pointer-events-none`}>
               <Checkbox
                 checked={isSelected}
-                onCheckedChange={() => onToggle(sport.sportId)}
-                aria-label={`${isSelected ? 'Deselect' : 'Select'} ${sport.name}`}
+                aria-hidden="true"
+                tabIndex={-1}
                 className={isTouchDevice ? 'h-5 w-5' : ''}
               />
             </div>

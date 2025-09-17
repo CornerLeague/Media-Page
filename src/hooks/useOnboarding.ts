@@ -219,6 +219,18 @@ export function useOnboarding() {
       return false;
     }
 
+    // Validate authentication before making API calls
+    if (!isSignedIn || !userLoaded || !user) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: {
+          field: 'complete',
+          error: 'Authentication required. Please sign in to complete onboarding.'
+        }
+      });
+      return false;
+    }
+
     // Save final preferences
     if (state.userPreferences.id &&
         state.userPreferences.sports &&
@@ -270,6 +282,12 @@ export function useOnboarding() {
           },
         };
 
+        // Ensure API client has authentication token before making the call
+        const token = await getToken();
+        if (!token) {
+          throw new Error('Unable to get authentication token');
+        }
+
         // Create user profile in backend
         await apiClient.createUser(userData);
 
@@ -293,7 +311,7 @@ export function useOnboarding() {
     }
 
     return false;
-  }, [state.userPreferences, user]);
+  }, [state.userPreferences, user, isSignedIn, userLoaded, getToken]);
 
   const resetOnboarding = useCallback(() => {
     OnboardingStorage.clearAll();

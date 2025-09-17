@@ -63,7 +63,7 @@ const WelcomeScreen: React.FC = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
         >
-          This is the welcome screen - working properly. Let's personalize your sports experience. Choose your favorite sports and teams to get started with content that matters to you.
+          Let's tailor your sports experience. Choose your favorite sports and teams to get started with content that matters to you.
         </motion.p>
       </motion.div>
 

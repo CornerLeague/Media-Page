@@ -351,15 +351,15 @@ export class ApiClient {
   }
 
   async createUser(userData: CreateUserRequest): Promise<UserProfile> {
-    return this.request<UserProfile>('/users', {
-      method: 'POST',
+    return this.request<UserProfile>('/users/me', {
+      method: 'PUT',
       body: userData,
     });
   }
 
   async updateUserPreferences(preferences: UpdateUserPreferencesRequest): Promise<UserProfile> {
     return this.request<UserProfile>('/users/me/preferences', {
-      method: 'PATCH',
+      method: 'PUT',
       body: preferences,
     });
   }

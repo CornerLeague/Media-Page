@@ -104,8 +104,8 @@ export type OnboardingAction =
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Corner League Media',
-    description: 'Let\'s personalize your sports experience',
+    title: 'Welcome',
+    description: 'Get started with Corner League',
     isCompleted: false,
     isRequired: true,
   },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -122,13 +122,18 @@ const SortableSportItem: React.FC<SortableSportItemProps> = ({
   );
 };
 
-const SportsSelection: React.FC = () => {
+interface SportsSelectionProps {
+  onValidationChange?: (isValid: boolean) => void;
+}
+
+const SportsSelection: React.FC<SportsSelectionProps> = ({ onValidationChange }) => {
   const { userPreferences, updateSports, setError, clearErrors } = useOnboarding();
   const { isTouchDevice, screenSize } = useDeviceCapabilities();
   const [availableSports, setAvailableSports] = useState<SportPreference[]>([]);
   const [selectedSportIds, setSelectedSportIds] = useState<Set<string>>(new Set());
+  const lastUpdateRef = useRef<string>('');
 
-  // Initialize available sports and selected sports
+  // Initialize available sports once
   useEffect(() => {
     const initialSports: SportPreference[] = AVAILABLE_SPORTS.map((sport, index) => ({
       sportId: sport.id,
@@ -139,25 +144,35 @@ const SportsSelection: React.FC = () => {
 
     setAvailableSports(initialSports);
 
-    // Set selected sports from user preferences
-    if (userPreferences.sports) {
+    // Set selected sports from user preferences only on initial load
+    if (userPreferences.sports && userPreferences.sports.length > 0) {
       const selectedIds = new Set(userPreferences.sports.map(s => s.sportId));
       setSelectedSportIds(selectedIds);
     }
-  }, [userPreferences.sports]);
+  }, []); // Only run once on mount
 
-  // Update user preferences when selection changes
+  // Update user preferences when selection changes (but only when it actually changes)
   useEffect(() => {
+    if (availableSports.length === 0) return; // Don't run until sports are loaded
+
     const selectedSports = availableSports.filter(sport =>
       selectedSportIds.has(sport.sportId)
     );
-    updateSports(selectedSports);
 
-    // Clear errors when selection changes
-    if (selectedSports.length > 0) {
-      clearErrors();
+    // Create a string representation to track if selection changed
+    const selectionKey = selectedSports.map(s => `${s.sportId}:${s.rank}`).join(',');
+
+    // Only update if the selection actually changed
+    if (lastUpdateRef.current !== selectionKey) {
+      lastUpdateRef.current = selectionKey;
+      updateSports(selectedSports);
+
+      // Clear errors when selection changes
+      if (selectedSports.length > 0) {
+        clearErrors();
+      }
     }
-  }, [selectedSportIds, availableSports, updateSports, clearErrors]);
+  }, [selectedSportIds]); // Only depend on selectedSportIds, not availableSports
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -240,6 +255,11 @@ const SportsSelection: React.FC = () => {
   const selectedCount = selectedSportIds.size;
   const hasMinimumSelection = selectedCount >= 1;
 
+  // Notify parent when validation changes
+  useEffect(() => {
+    onValidationChange?.(hasMinimumSelection);
+  }, [hasMinimumSelection, onValidationChange]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -248,7 +268,7 @@ const SportsSelection: React.FC = () => {
           <Trophy className="h-8 w-8 text-primary" />
         </div>
         <p className="text-muted-foreground">
-          Select and rank your favorite sports. You can drag to reorder by preference.
+          Choose your favorite sports and drag to reorder them by preference.
         </p>
       </div>
 
@@ -283,13 +303,9 @@ const SportsSelection: React.FC = () => {
       {/* Selection status */}
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
-          {selectedCount === 0 ? (
-            <span className="text-destructive">Please select at least one sport</span>
-          ) : (
-            <span>
-              {selectedCount} sport{selectedCount !== 1 ? 's' : ''} selected
-            </span>
-          )}
+          <span>
+            {selectedCount} sport{selectedCount !== 1 ? 's' : ''} selected
+          </span>
         </p>
       </div>
 
@@ -321,11 +337,11 @@ const SportsSelection: React.FC = () => {
 
       {/* Instructions */}
       <div className="text-center max-w-md mx-auto">
-        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <Card className="bg-muted/50 border-muted-foreground/20">
           <CardContent className="p-4">
             <div className="flex items-start space-x-2">
-              <ChevronRight className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-blue-800 dark:text-blue-200">
+              <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-foreground">
                 <strong>Tip:</strong> Drag sports up or down to rank them by your interest level.
                 Your #1 choice will get priority in your personalized feed.
               </p>
@@ -334,14 +350,6 @@ const SportsSelection: React.FC = () => {
         </Card>
       </div>
 
-      {/* Validation message */}
-      {!hasMinimumSelection && (
-        <div className="text-center">
-          <p className="text-sm text-destructive">
-            Select at least one sport to continue
-          </p>
-        </div>
-      )}
     </div>
   );
 };

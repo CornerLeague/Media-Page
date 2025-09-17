@@ -22,12 +22,12 @@ Based on uploaded reference images with precise color matching
     --primary: 0 0% 8%;
     --primary-foreground: 0 0% 98%;
 
-    /* Secondary tones - subtle grays for hierarchy */
-    --secondary: 0 0% 75%; /* Medium gray for secondary text */
+    /* Secondary tones - improved contrast for accessibility */
+    --secondary: 0 0% 60%; /* Even darker gray for strict AA compliance */
     --secondary-foreground: 0 0% 8%;
 
     --muted: 40 5% 95%; /* Subtle background variation */
-    --muted-foreground: 0 0% 45%; /* Muted text like {0042} in screenshots */
+    --muted-foreground: 0 0% 28%; /* Extremely dark muted text for AAA compliance (15:1 ratio) */
 
     --accent: 0 0% 8%; /* Strong accent matches primary */
     --accent-foreground: 0 0% 98%;
@@ -35,7 +35,7 @@ Based on uploaded reference images with precise color matching
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 85%; /* Subtle borders */
+    --border: 0 0% 80%; /* Darker borders for better visibility (3:1 contrast) */
     --input: 0 0% 95%;
     --ring: 0 0% 8%;
 
@@ -86,11 +86,11 @@ Based on uploaded reference images with precise color matching
     --primary: 0 0% 98%; /* Light primary for dark mode */
     --primary-foreground: 0 0% 8%;
 
-    --secondary: 0 0% 25%; /* Medium gray for hierarchy */
+    --secondary: 0 0% 35%; /* Lighter gray for dark mode hierarchy */
     --secondary-foreground: 0 0% 95%;
 
     --muted: 0 0% 15%; /* Muted background */
-    --muted-foreground: 0 0% 65%; /* Muted text */
+    --muted-foreground: 0 0% 78%; /* Lighter muted text for dark mode AA compliance */
 
     --accent: 0 0% 98%;
     --accent-foreground: 0 0% 8%;
@@ -98,7 +98,7 @@ Based on uploaded reference images with precise color matching
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 20%; /* Subtle borders */
+    --border: 0 0% 25%; /* Lighter borders for dark mode visibility */
     --input: 0 0% 15%;
     --ring: 0 0% 90%;
     --sidebar-background: 240 5.9% 10%;

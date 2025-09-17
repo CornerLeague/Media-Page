@@ -100,51 +100,53 @@ export type OnboardingAction =
   | { type: 'COMPLETE_ONBOARDING' }
   | { type: 'RESET_ONBOARDING' };
 
+// Default onboarding steps
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome',
-    description: 'Get started with Corner League Media',
+    title: 'Welcome to Corner League Media',
+    description: 'Let\'s personalize your sports experience',
     isCompleted: false,
     isRequired: true,
   },
   {
     id: 'sports',
-    title: 'Select Sports',
-    description: 'Choose your favorite sports',
+    title: 'Choose Your Sports',
+    description: 'Select and rank your favorite sports',
     isCompleted: false,
     isRequired: true,
   },
   {
     id: 'teams',
-    title: 'Choose Teams',
-    description: 'Pick your favorite teams',
+    title: 'Select Your Teams',
+    description: 'Pick your favorite teams from your chosen sports',
     isCompleted: false,
-    isRequired: true,
+    isRequired: false,
   },
   {
     id: 'preferences',
-    title: 'Preferences',
-    description: 'Customize your experience',
+    title: 'Content Preferences',
+    description: 'Customize your news and notification settings',
     isCompleted: false,
     isRequired: false,
   },
   {
     id: 'complete',
-    title: 'Complete',
-    description: 'Your setup is ready!',
+    title: 'All Set!',
+    description: 'Your personalized sports experience is ready',
     isCompleted: false,
     isRequired: true,
   },
 ];
 
+// Default user settings
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   newsTypes: [
-    { type: 'injuries', enabled: true, priority: 1 },
-    { type: 'trades', enabled: true, priority: 2 },
-    { type: 'roster', enabled: true, priority: 3 },
-    { type: 'scores', enabled: true, priority: 4 },
-    { type: 'general', enabled: false, priority: 5 },
+    { type: 'general', enabled: true, priority: 1 },
+    { type: 'scores', enabled: true, priority: 2 },
+    { type: 'trades', enabled: true, priority: 3 },
+    { type: 'injuries', enabled: true, priority: 4 },
+    { type: 'roster', enabled: false, priority: 5 },
     { type: 'analysis', enabled: false, priority: 6 },
   ],
   notifications: {
@@ -156,3 +158,4 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   },
   contentFrequency: 'standard',
 };
+

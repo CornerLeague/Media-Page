@@ -129,14 +129,14 @@ const OnboardingComplete: React.FC = () => {
           </div>
         </div>
 
-        <motion.h2
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.5 }}
           className="text-4xl font-bold tracking-tight"
         >
-          You're All Set! 🎉
-        </motion.h2>
+          🎉
+        </motion.div>
 
         <motion.p
           initial={{ opacity: 0, y: 10 }}
@@ -200,10 +200,10 @@ const OnboardingComplete: React.FC = () => {
       {/* Summary of Selections */}
       <Card>
         <CardContent className="p-6 space-y-6">
-          <h3 className="text-lg font-semibold flex items-center">
+          <h2 className="text-lg font-semibold flex items-center">
             <Star className="h-5 w-5 mr-2 text-yellow-500" />
             Your Personalized Setup
-          </h3>
+          </h2>
 
           {/* Sports Summary */}
           {sportsDetails.length > 0 && (
@@ -301,10 +301,10 @@ const OnboardingComplete: React.FC = () => {
       {/* What's Next */}
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
             <Heart className="h-5 w-5 mr-2 text-primary" />
             What's Next?
-          </h3>
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="flex items-start space-x-2">
               <ArrowRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />

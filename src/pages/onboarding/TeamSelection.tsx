@@ -231,7 +231,7 @@ const TeamSelection: React.FC = () => {
         <div className="flex justify-center mb-4">
           <Trophy className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="text-xl font-semibold">No Team Selection Needed</h3>
+        <h2 className="text-xl font-semibold">No Team Selection Needed</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
           None of your selected sports have teams to choose from.
           You can continue to the next step.

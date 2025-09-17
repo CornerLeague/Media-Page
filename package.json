@@ -13,7 +13,13 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:accessibility": "vitest run src/__tests__/accessibility",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:accessibility": "playwright test --project=accessibility",
+    "playwright:install": "playwright install",
+    "playwright:install-deps": "playwright install-deps"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.10.2",
@@ -84,6 +90,7 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",

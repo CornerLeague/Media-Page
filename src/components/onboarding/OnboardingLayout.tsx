@@ -94,7 +94,11 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <Progress value={progress} className="h-2" />
+            <Progress
+              value={progress}
+              className="h-2"
+              aria-label={`Onboarding progress: ${currentStep + 1} of ${steps.length} steps completed`}
+            />
           </motion.div>
 
           {/* Step indicator dots */}
@@ -102,6 +106,8 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
             {steps.map((step, index) => (
               <motion.div
                 key={step.id}
+                role="button"
+                tabIndex={0}
                 className={`h-2 w-2 rounded-full transition-colors ${
                   index === currentStep
                     ? 'bg-primary'

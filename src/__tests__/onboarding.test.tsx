@@ -46,7 +46,7 @@ vi.mock('@clerk/clerk-react', () => ({
 
 // Mock accessibility audit to prevent slow tests
 vi.mock('@/lib/accessibility', async () => {
-  const actual = await vi.importActual('@/lib/accessibility') as any;
+  const actual = await vi.importActual('@/lib/accessibility') as Record<string, unknown>;
   return {
     ...actual,
     runAccessibilityAudit: vi.fn().mockResolvedValue({

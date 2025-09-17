@@ -8,9 +8,27 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, vi } from 'vitest';
 
+// Type definitions for onboarding mock state
+interface MockOnboardingState {
+  currentStep: number;
+  steps: string[];
+  userPreferences: unknown;
+  isComplete: boolean;
+  errors: Record<string, string>;
+}
+
+interface MockUserPreferences {
+  id?: string;
+  sports?: unknown[];
+  teams?: unknown[];
+  preferences?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Mock state variables for onboarding storage
-let mockOnboardingState: any = null;
-let mockUserPreferences: any = null;
+let mockOnboardingState: MockOnboardingState | null = null;
+let mockUserPreferences: MockUserPreferences | null = null;
 
 // Cleanup after each test
 afterEach(() => {
@@ -65,7 +83,12 @@ beforeAll(() => {
 
   // Mock DragEvent for drag and drop tests
   global.DragEvent = class DragEvent extends Event {
-    dataTransfer: any;
+    dataTransfer: {
+      setData: ReturnType<typeof vi.fn>;
+      getData: ReturnType<typeof vi.fn>;
+      dropEffect: string;
+      effectAllowed: string;
+    };
     constructor(type: string, eventInitDict?: DragEventInit) {
       super(type, eventInitDict);
       this.dataTransfer = {
@@ -79,9 +102,9 @@ beforeAll(() => {
 
   // Mock touch events
   global.TouchEvent = class TouchEvent extends UIEvent {
-    touches: any[] = [];
-    targetTouches: any[] = [];
-    changedTouches: any[] = [];
+    touches: Touch[] = [];
+    targetTouches: Touch[] = [];
+    changedTouches: Touch[] = [];
     constructor(type: string, eventInitDict?: TouchEventInit) {
       super(type, eventInitDict);
     }
@@ -109,7 +132,7 @@ beforeAll(() => {
 // Suppress console errors during tests unless needed
 const originalConsoleError = console.error;
 beforeAll(() => {
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning: ReactDOM.render is no longer supported') ||
@@ -127,7 +150,12 @@ import { ReactElement } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-export function renderWithProviders(ui: ReactElement, options: any = {}) {
+interface RenderOptions {
+  wrapper?: React.ComponentType<{ children: React.ReactNode }>;
+  [key: string]: unknown;
+}
+
+export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -149,8 +177,15 @@ export function renderWithProviders(ui: ReactElement, options: any = {}) {
 }
 
 // Accessibility testing utilities
+interface AxeResults {
+  violations: Array<{
+    id: string;
+    description: string;
+  }>;
+}
+
 export const axeMatchers = {
-  toHaveNoViolations: (received: any) => {
+  toHaveNoViolations: (received: AxeResults) => {
     if (received.violations.length === 0) {
       return {
         message: () => 'Expected element to have accessibility violations',
@@ -159,7 +194,7 @@ export const axeMatchers = {
     }
 
     const violationMessages = received.violations
-      .map((violation: any) => `${violation.id}: ${violation.description}`)
+      .map((violation) => `${violation.id}: ${violation.description}`)
       .join('\n');
 
     return {
@@ -209,7 +244,7 @@ vi.mock('framer-motion', () => ({
     {},
     {
       get: (target, prop) => {
-        const component = ({ children, ...props }: any) => {
+        const component = ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => {
           // Remove motion props that aren't valid HTML attributes
           const {
             initial,
@@ -226,6 +261,7 @@ vi.mock('framer-motion', () => ({
           } = props;
 
           // Import React for createElement
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
           const React = require('react');
           return React.createElement(prop as string, validProps, children);
         };
@@ -233,7 +269,7 @@ vi.mock('framer-motion', () => ({
       },
     }
   ),
-  AnimatePresence: ({ children }: any) => children,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   useAnimation: () => ({
     start: vi.fn(),
     stop: vi.fn(),
@@ -243,14 +279,14 @@ vi.mock('framer-motion', () => ({
 
 // Mock @dnd-kit libraries to prevent hanging
 vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: any) => children,
+  DndContext: ({ children }: { children: React.ReactNode }) => children,
   closestCenter: vi.fn(),
   KeyboardSensor: vi.fn(),
   PointerSensor: vi.fn(),
   TouchSensor: vi.fn(),
   useSensor: vi.fn(),
   useSensors: vi.fn(() => []),
-  DragOverlay: ({ children }: any) => children,
+  DragOverlay: ({ children }: { children: React.ReactNode }) => children,
   useDroppable: vi.fn(() => ({
     setNodeRef: vi.fn(),
     isOver: false,
@@ -269,7 +305,7 @@ vi.mock('@dnd-kit/sortable', () => ({
     newArray.splice(to, 0, newArray.splice(from, 1)[0]);
     return newArray;
   }),
-  SortableContext: ({ children }: any) => children,
+  SortableContext: ({ children }: { children: React.ReactNode }) => children,
   sortableKeyboardCoordinates: vi.fn(),
   verticalListSortingStrategy: 'vertical',
   useSortable: vi.fn(() => ({
@@ -292,7 +328,7 @@ vi.mock('@dnd-kit/utilities', () => ({
 
 // Mock React Query to prevent network issues
 vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual('@tanstack/react-query') as any;
+  const actual = await vi.importActual('@tanstack/react-query') as Record<string, unknown>;
   return {
     ...actual,
     useQuery: vi.fn(() => ({
@@ -375,7 +411,7 @@ vi.mock('@/lib/onboarding/validation', () => ({
       isValid: false,
       errors: ['At least one news type must be enabled'],
     })),
-    validateCompletePreferences: vi.fn((prefs: any) => {
+    validateCompletePreferences: vi.fn((prefs: MockUserPreferences) => {
       // Check if incomplete preferences (missing required fields)
       if (!prefs.id || !prefs.sports || !prefs.teams || !prefs.preferences) {
         return {

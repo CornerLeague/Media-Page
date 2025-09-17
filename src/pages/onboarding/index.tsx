@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { OnboardingValidator } from '@/lib/onboarding/validation';
 import WelcomeScreen from './WelcomeScreen';
 import SportsSelection from './SportsSelection';
 import TeamSelection from './TeamSelection';
@@ -12,6 +13,8 @@ const OnboardingIndex: React.FC = () => {
   console.log('OnboardingIndex component loaded');
 
   const navigate = useNavigate();
+  const [stepValidations, setStepValidations] = React.useState<Record<string, boolean>>({});
+
   const {
     currentStep,
     steps,
@@ -25,13 +28,21 @@ const OnboardingIndex: React.FC = () => {
     completeOnboarding,
     resetOnboarding,
     errors,
+    userPreferences,
   } = useOnboarding();
 
   console.log('Onboarding hook data:', { currentStep, steps, currentStepData });
 
-  const handleNext = () => {
+  const handleStepValidationChange = (stepId: string, isValid: boolean) => {
+    setStepValidations(prev => ({
+      ...prev,
+      [stepId]: isValid
+    }));
+  };
+
+  const handleNext = async () => {
     if (isLastStep) {
-      const success = completeOnboarding();
+      const success = await completeOnboarding();
       if (success) {
         navigate('/', { replace: true });
       }
@@ -77,7 +88,7 @@ const OnboardingIndex: React.FC = () => {
       case 'welcome':
         return <WelcomeScreen />;
       case 'sports':
-        return <SportsSelection />;
+        return <SportsSelection onValidationChange={(isValid) => handleStepValidationChange('sports', isValid)} />;
       case 'teams':
         return <TeamSelection />;
       case 'preferences':
@@ -104,6 +115,22 @@ const OnboardingIndex: React.FC = () => {
 
   const hasStepErrors = errors[currentStepData?.id || ''];
 
+  // Check if current step can proceed based on validation
+  const getCanProceed = () => {
+    if (!currentStepData) return false;
+
+    // Use component-level validation for sports step
+    if (currentStepData.id === 'sports') {
+      return stepValidations['sports'] ?? false;
+    }
+
+    // Fall back to global validation for other steps
+    const validation = OnboardingValidator.validateStepCompletion(currentStepData.id, userPreferences);
+    return validation.canProceed;
+  };
+
+  const canProceed = getCanProceed();
+
   return (
     <OnboardingLayout
       currentStep={currentStep}
@@ -112,7 +139,7 @@ const OnboardingIndex: React.FC = () => {
       onBack={handleBack}
       onSkip={handleSkip}
       onExit={handleExit}
-      nextDisabled={!!hasStepErrors}
+      nextDisabled={!canProceed}
       nextLabel={getNextLabel()}
       showSkip={canSkipCurrentStep}
     >

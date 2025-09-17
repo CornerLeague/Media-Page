@@ -24,3 +24,11 @@ dist-ssr
 *.sw?
 *.env
 *.env.docker
+
+# Test artifacts
+test-results/
+playwright-report/
+playwright-report.json
+playwright-results.xml
+e2e-report/
+coverage/

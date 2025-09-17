@@ -1,0 +1,1340 @@
+openapi: 3.0.3
+info:
+  title: Corner League Media API
+  description: |
+    Corner League Media Sports Platform API
+
+    A comprehensive sports media platform providing personalized team content,
+    real-time sports information, and fan experiences.
+
+    ## Authentication
+    This API uses Clerk authentication with JWT Bearer tokens.
+    Include the token in the Authorization header: `Bearer <token>`
+
+    ## Rate Limiting
+    - Public endpoints: 100 requests per minute
+    - Authenticated endpoints: 1000 requests per minute
+    - Ingestion endpoints: 10 requests per minute
+
+    ## Pagination
+    List endpoints support pagination with `page` and `page_size` parameters.
+    Default page size is 20, maximum is 100.
+
+    ## Error Handling
+    The API returns consistent error responses with appropriate HTTP status codes.
+    Error responses include a `code`, `message`, and optional `details` field.
+
+    ## Real-time Updates
+    WebSocket connections are available at `/ws` for live updates on:
+    - Game scores and events
+    - Breaking news alerts
+    - User notifications
+
+  version: 1.0.0
+  contact:
+    name: Corner League Media
+    email: api@cornerleague.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.cornerleague.com/api/v1
+    description: Production server
+  - url: https://staging-api.cornerleague.com/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - ClerkJWT: []
+
+paths:
+  # Health and System
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Check API health status
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  # Authentication & Users
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      description: Retrieve the authenticated user's complete profile
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Users]
+      summary: Create or update user profile
+      description: Create a new user or update existing user profile with onboarding data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags: [Users]
+      summary: Update user profile
+      description: Partially update user profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Users]
+      summary: Delete user account
+      description: Permanently delete user account and all associated data
+      responses:
+        '204':
+          description: User deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/preferences:
+    put:
+      tags: [Users]
+      summary: Update user preferences
+      description: Update user's sports, teams, and notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesUpdate'
+      responses:
+        '200':
+          description: Preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Sports Management
+  /sports:
+    get:
+      tags: [Sports]
+      summary: List sports
+      description: Get list of available sports
+      security: []
+      parameters:
+        - name: is_active
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Sports retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SportResponse'
+
+  /sports/{sport_id}:
+    get:
+      tags: [Sports]
+      summary: Get sport details
+      description: Get detailed information about a specific sport
+      security: []
+      parameters:
+        - name: sport_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sport details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SportResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /sports/{sport_id}/leagues:
+    get:
+      tags: [Sports]
+      summary: List leagues for sport
+      description: Get leagues associated with a sport
+      security: []
+      parameters:
+        - name: sport_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Leagues retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeagueResponse'
+
+  /leagues/{league_id}/teams:
+    get:
+      tags: [Sports]
+      summary: List teams in league
+      description: Get teams in a specific league
+      security: []
+      parameters:
+        - name: league_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Teams retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TeamResponse'
+
+  # Content & Feeds
+  /sports/feed:
+    get:
+      tags: [Content]
+      summary: Get sports content feed
+      description: Get paginated sports content feed with filtering options
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: category
+          in: query
+          description: Filter by content category
+          schema:
+            $ref: '#/components/schemas/ContentCategory'
+        - name: team_id
+          in: query
+          description: Filter by specific team
+          schema:
+            type: string
+            format: uuid
+        - name: sport_id
+          in: query
+          description: Filter by specific sport
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Full-text search query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Content feed retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArticleResponse'
+
+  /sports/personalized:
+    get:
+      tags: [Content]
+      summary: Get personalized content
+      description: Get personalized content based on user preferences
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Personalized content retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArticleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Games & Scores
+  /games:
+    get:
+      tags: [Games]
+      summary: List games
+      description: Get list of games with filtering options
+      parameters:
+        - name: date
+          in: query
+          description: Filter by date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: team_id
+          in: query
+          description: Filter by team
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by game status
+          schema:
+            $ref: '#/components/schemas/GameStatus'
+        - name: sport_id
+          in: query
+          description: Filter by sport
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Games retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GameResponse'
+
+  /games/{game_id}:
+    get:
+      tags: [Games]
+      summary: Get game details
+      description: Get detailed information about a specific game
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Game details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GameResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Team Dashboard
+  /teams/{team_id}/dashboard:
+    get:
+      tags: [Teams]
+      summary: Get team dashboard
+      description: Get comprehensive team dashboard with scores, news, and more
+      parameters:
+        - name: team_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Team dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TeamDashboard'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Home Dashboard
+  /me/home:
+    get:
+      tags: [Dashboard]
+      summary: Get user home dashboard
+      description: Get personalized home dashboard for authenticated user
+      responses:
+        '200':
+          description: Home dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HomeData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    ClerkJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Clerk authentication JWT token
+
+  schemas:
+    # Common schemas
+    APIResponse:
+      type: object
+      required: [data, status, timestamp]
+      properties:
+        data:
+          description: Response data
+        message:
+          type: string
+          description: Optional message
+        status:
+          type: string
+          enum: [success, error]
+          default: success
+        timestamp:
+          type: string
+          format: date-time
+
+    PaginatedResponse:
+      type: object
+      required: [items, total, page, page_size, has_next, has_previous]
+      properties:
+        items:
+          type: array
+          description: Array of items for current page
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of items
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Number of items per page
+        has_next:
+          type: boolean
+          description: Whether there are more pages
+        has_previous:
+          type: boolean
+          description: Whether there are previous pages
+
+    ErrorResponse:
+      type: object
+      required: [code, message, timestamp]
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+
+    # Enums
+    ContentFrequency:
+      type: string
+      enum: [minimal, standard, comprehensive]
+      description: User content frequency preference
+
+    NewsType:
+      type: string
+      enum: [injuries, trades, roster, general, scores, analysis]
+      description: Type of news content
+
+    ContentCategory:
+      type: string
+      enum: [injuries, trades, roster, general, scores, analysis]
+      description: Content category
+
+    GameStatus:
+      type: string
+      enum: [SCHEDULED, LIVE, FINAL, POSTPONED, CANCELLED]
+      description: Game status
+
+    ExperienceType:
+      type: string
+      enum: [watch_party, tailgate, viewing, meetup]
+      description: Fan experience type
+
+    # Auth schemas
+    UserCreate:
+      type: object
+      required: [clerk_user_id]
+      properties:
+        clerk_user_id:
+          type: string
+          description: Clerk authentication user ID
+        display_name:
+          type: string
+          maxLength: 100
+          description: User's display name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        sports:
+          type: array
+          description: User's sport preferences
+          items:
+            type: object
+            required: [sport_id, name, rank, has_teams]
+            properties:
+              sport_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              rank:
+                type: integer
+                minimum: 1
+              has_teams:
+                type: boolean
+        teams:
+          type: array
+          description: User's team preferences
+          items:
+            type: object
+            required: [team_id, name, sport_id, league, affinity_score]
+            properties:
+              team_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              sport_id:
+                type: string
+                format: uuid
+              league:
+                type: string
+              affinity_score:
+                type: number
+                minimum: 0
+                maximum: 1
+        preferences:
+          type: object
+          description: User's content preferences
+          properties:
+            news_types:
+              type: array
+              items:
+                type: object
+                required: [type, enabled, priority]
+                properties:
+                  type:
+                    $ref: '#/components/schemas/NewsType'
+                  enabled:
+                    type: boolean
+                  priority:
+                    type: integer
+                    minimum: 1
+            notifications:
+              type: object
+              required: [push, email, game_reminders, news_alerts, score_updates]
+              properties:
+                push:
+                  type: boolean
+                email:
+                  type: boolean
+                game_reminders:
+                  type: boolean
+                news_alerts:
+                  type: boolean
+                score_updates:
+                  type: boolean
+            content_frequency:
+              $ref: '#/components/schemas/ContentFrequency'
+
+    UserUpdate:
+      type: object
+      properties:
+        display_name:
+          type: string
+          maxLength: 100
+        content_frequency:
+          $ref: '#/components/schemas/ContentFrequency'
+        avatar_url:
+          type: string
+          maxLength: 500
+
+    UserProfile:
+      type: object
+      required: [id, clerk_user_id, content_frequency, is_active, last_active_at, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clerk_user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+        content_frequency:
+          $ref: '#/components/schemas/ContentFrequency'
+        is_active:
+          type: boolean
+        onboarding_completed_at:
+          type: string
+          format: date-time
+        last_active_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        sport_preferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSportPreference'
+        team_preferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserTeamPreference'
+        news_preferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserNewsPreference'
+        notification_settings:
+          $ref: '#/components/schemas/UserNotificationSettings'
+
+    # Sports schemas
+    SportResponse:
+      type: object
+      required: [id, name, slug, has_teams, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        has_teams:
+          type: boolean
+        icon:
+          type: string
+        is_active:
+          type: boolean
+        display_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LeagueResponse:
+      type: object
+      required: [id, sport_id, name, slug, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sport_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        abbreviation:
+          type: string
+        is_active:
+          type: boolean
+        season_start_month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        season_end_month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TeamResponse:
+      type: object
+      required: [id, sport_id, league_id, name, market, slug, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sport_id:
+          type: string
+          format: uuid
+        league_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        market:
+          type: string
+        slug:
+          type: string
+        abbreviation:
+          type: string
+        logo_url:
+          type: string
+        primary_color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        secondary_color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        is_active:
+          type: boolean
+        external_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # Additional schemas would continue here...
+    # (Content, Games, Preferences, etc.)
+
+    # Preference schemas
+    UserSportPreference:
+      type: object
+      required: [id, sport_id, rank, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sport_id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+          minimum: 1
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        sport:
+          $ref: '#/components/schemas/SportResponse'
+
+    UserTeamPreference:
+      type: object
+      required: [id, team_id, affinity_score, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+        affinity_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        team:
+          $ref: '#/components/schemas/TeamResponse'
+
+    UserNewsPreference:
+      type: object
+      required: [id, news_type, enabled, priority, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        news_type:
+          $ref: '#/components/schemas/NewsType'
+        enabled:
+          type: boolean
+        priority:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserNotificationSettings:
+      type: object
+      required: [id, push_enabled, email_enabled, game_reminders, news_alerts, score_updates, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        push_enabled:
+          type: boolean
+        email_enabled:
+          type: boolean
+        game_reminders:
+          type: boolean
+        news_alerts:
+          type: boolean
+        score_updates:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PreferencesUpdate:
+      type: object
+      properties:
+        sports:
+          type: array
+          items:
+            type: object
+            required: [sport_id, rank]
+            properties:
+              sport_id:
+                type: string
+                format: uuid
+              rank:
+                type: integer
+                minimum: 1
+        teams:
+          type: array
+          items:
+            type: object
+            required: [team_id, affinity_score]
+            properties:
+              team_id:
+                type: string
+                format: uuid
+              affinity_score:
+                type: number
+                minimum: 0
+                maximum: 1
+        preferences:
+          type: object
+          properties:
+            news_types:
+              type: array
+              items:
+                type: object
+                required: [type, enabled, priority]
+                properties:
+                  type:
+                    $ref: '#/components/schemas/NewsType'
+                  enabled:
+                    type: boolean
+                  priority:
+                    type: integer
+            notifications:
+              type: object
+              properties:
+                push_enabled:
+                  type: boolean
+                email_enabled:
+                  type: boolean
+                game_reminders:
+                  type: boolean
+                news_alerts:
+                  type: boolean
+                score_updates:
+                  type: boolean
+            content_frequency:
+              $ref: '#/components/schemas/ContentFrequency'
+
+    # Content schemas
+    ArticleResponse:
+      type: object
+      required: [id, title, source, category, published_at, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        author:
+          type: string
+        source:
+          type: string
+        category:
+          $ref: '#/components/schemas/ContentCategory'
+        priority:
+          type: integer
+        published_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+        image_url:
+          type: string
+        word_count:
+          type: integer
+          minimum: 0
+        reading_time_minutes:
+          type: integer
+          minimum: 0
+        sentiment_score:
+          type: number
+          minimum: -1
+          maximum: 1
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        sports:
+          type: array
+          items:
+            type: object
+            properties:
+              sport:
+                $ref: '#/components/schemas/SportResponse'
+              relevance_score:
+                type: number
+                minimum: 0
+                maximum: 1
+        teams:
+          type: array
+          items:
+            type: object
+            properties:
+              team:
+                $ref: '#/components/schemas/TeamResponse'
+              relevance_score:
+                type: number
+                minimum: 0
+                maximum: 1
+              mentioned_players:
+                type: array
+                items:
+                  type: string
+
+    # Game schemas
+    GameResponse:
+      type: object
+      required: [id, sport_id, league_id, home_team_id, away_team_id, scheduled_at, status, home_score, away_score, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sport_id:
+          type: string
+          format: uuid
+        league_id:
+          type: string
+          format: uuid
+        home_team_id:
+          type: string
+          format: uuid
+        away_team_id:
+          type: string
+          format: uuid
+        scheduled_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/GameStatus'
+        period:
+          type: string
+        time_remaining:
+          type: string
+        home_score:
+          type: integer
+          minimum: 0
+        away_score:
+          type: integer
+          minimum: 0
+        external_id:
+          type: string
+        venue:
+          type: string
+        season:
+          type: integer
+        week:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        home_team:
+          $ref: '#/components/schemas/TeamResponse'
+        away_team:
+          $ref: '#/components/schemas/TeamResponse'
+
+    # Dashboard schemas
+    TeamDashboard:
+      type: object
+      required: [team, recent_results, summary, news, depth_chart, ticket_deals, experiences]
+      properties:
+        team:
+          $ref: '#/components/schemas/TeamResponse'
+        latest_score:
+          $ref: '#/components/schemas/GameResponse'
+        recent_results:
+          type: array
+          items:
+            type: object
+            required: [game_id, result, diff, date]
+            properties:
+              game_id:
+                type: string
+                format: uuid
+              result:
+                type: string
+                enum: [W, L, T]
+              diff:
+                type: integer
+              date:
+                type: string
+                format: date
+              opponent:
+                type: string
+        summary:
+          type: object
+          required: [text, generated_at]
+          properties:
+            text:
+              type: string
+            generated_at:
+              type: string
+              format: date-time
+        news:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArticleResponse'
+        depth_chart:
+          type: array
+          items:
+            type: object
+            required: [position, player_name, depth_order]
+            properties:
+              position:
+                type: string
+              player_name:
+                type: string
+              depth_order:
+                type: integer
+                minimum: 1
+              jersey_number:
+                type: integer
+              experience:
+                type: string
+        ticket_deals:
+          type: array
+          items:
+            type: object
+            required: [provider, price, section, deal_score]
+            properties:
+              provider:
+                type: string
+              price:
+                type: number
+                minimum: 0
+              section:
+                type: string
+              deal_score:
+                type: number
+                minimum: 0
+                maximum: 1
+              game_date:
+                type: string
+                format: date-time
+              quantity:
+                type: integer
+                minimum: 1
+        experiences:
+          type: array
+          items:
+            type: object
+            required: [type, title, start_time]
+            properties:
+              type:
+                $ref: '#/components/schemas/ExperienceType'
+              title:
+                type: string
+              start_time:
+                type: string
+                format: date-time
+              location:
+                type: string
+              description:
+                type: string
+              attendees:
+                type: integer
+                minimum: 0
+
+    HomeData:
+      type: object
+      required: [most_liked_team_id, user_teams]
+      properties:
+        most_liked_team_id:
+          type: string
+          format: uuid
+        user_teams:
+          type: array
+          items:
+            type: object
+            required: [team_id, name, affinity_score]
+            properties:
+              team_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              affinity_score:
+                type: number
+                minimum: 0
+                maximum: 1
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "VALIDATION_ERROR"
+            message: "Invalid request data"
+            timestamp: "2025-01-17T12:00:00Z"
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "UNAUTHORIZED"
+            message: "Authentication required"
+            timestamp: "2025-01-17T12:00:00Z"
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "FORBIDDEN"
+            message: "Access denied"
+            timestamp: "2025-01-17T12:00:00Z"
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "NOT_FOUND"
+            message: "Resource not found"
+            timestamp: "2025-01-17T12:00:00Z"
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "RATE_LIMIT_EXCEEDED"
+            message: "Rate limit exceeded. Try again later."
+            timestamp: "2025-01-17T12:00:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "INTERNAL_ERROR"
+            message: "An unexpected error occurred"
+            timestamp: "2025-01-17T12:00:00Z"
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Users
+    description: User authentication and profile management
+  - name: Sports
+    description: Sports, leagues, and teams management
+  - name: Content
+    description: Articles, feeds, and content management
+  - name: Games
+    description: Games, scores, and live events
+  - name: Teams
+    description: Team-specific information and dashboards
+  - name: Dashboard
+    description: User dashboards and personalized content

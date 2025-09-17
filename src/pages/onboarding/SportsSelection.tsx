@@ -176,7 +176,7 @@ const SportsSelection: React.FC<SportsSelectionProps> = ({ onValidationChange })
       const selectedIds = new Set(userPreferences.sports.map(s => s.sportId));
       setSelectedSportIds(selectedIds);
     }
-  }, []); // Only run once on mount
+  }, [userPreferences.sports]); // Run when sports preferences change
 
   // Update user preferences when selection changes (but only when it actually changes)
   useEffect(() => {
@@ -199,7 +199,7 @@ const SportsSelection: React.FC<SportsSelectionProps> = ({ onValidationChange })
         clearErrors();
       }
     }
-  }, [selectedSportIds]); // Only depend on selectedSportIds, not availableSports
+  }, [selectedSportIds, availableSports, updateSports, clearErrors]); // Include all dependencies
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

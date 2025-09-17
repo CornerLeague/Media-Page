@@ -46,7 +46,14 @@ const WelcomeScreen: React.FC = () => {
           🏟️
         </motion.div>
 
-        {/* Title is now provided by OnboardingLayout */}
+        <motion.h1
+          className="text-4xl md:text-5xl font-bold text-foreground mb-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          Welcome to Corner League Media
+        </motion.h1>
 
         <motion.p
           className="text-xl text-muted-foreground max-w-2xl mb-2"

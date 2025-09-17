@@ -124,7 +124,7 @@ describe('Onboarding System', () => {
 
       // Check for actual content in the simplified component
       expect(screen.getByText(/your personalized sports media platform/i)).toBeInTheDocument();
-      expect(screen.getByText(/this is the welcome screen - working properly/i)).toBeInTheDocument();
+      expect(screen.getByText(/let's tailor your sports experience/i)).toBeInTheDocument();
 
       // Run accessibility audit with timeout protection
       try {
@@ -147,7 +147,7 @@ describe('Onboarding System', () => {
       expect(welcomeElement).toBeInTheDocument();
 
       // Check for the success message in the simplified component
-      expect(screen.getByText(/this is the welcome screen - working properly/i)).toBeInTheDocument();
+      expect(screen.getByText(/let's tailor your sports experience/i)).toBeInTheDocument();
     });
 
     it('handles reduced motion preferences', async () => {

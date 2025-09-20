@@ -1,4 +1,4 @@
-import { Sport } from '@/lib/types/onboarding-types';
+import { Sport } from '@/types';
 
 export const AVAILABLE_SPORTS: Sport[] = [
   {

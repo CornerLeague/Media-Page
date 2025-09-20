@@ -1,7 +1,7 @@
 
 # Sports Media Platform — `initial.md` (Claude Code)
 
-## Personalized sports news feed with on-demand AI summaries, powered by FastAPI + Supabase/Postgres, React + shadcn/ui, Clerk auth, Redis for queues/cache, and typed agent workflows.
+## Personalized sports news feed with on-demand AI summaries, powered by FastAPI + Supabase/Postgres, React + shadcn/ui, Firebase auth, Redis for queues/cache, and typed agent workflows.
 
 ---
 
@@ -21,7 +21,7 @@ A web app that personalizes team content from onboarding to a data-driven home p
 **Workers/Queue**: Celery + Redis (scheduled scrapes, ranking, summarization)  
 **Containers**: Docker (dev via Compose; prod blue‑green / K8s‑ready)  
 **Observability**: Prometheus + Grafana + Loki + Tempo  
-**Security**: Clerk auth (JWT), strict CORS, SAST via Semgrep, non‑root containers  
+**Security**: Firebase auth (JWT), strict CORS, SAST via Semgrep, non‑root containers  
 **Scraping**: Ethical crawling (robots.txt, rate limiting) via proxy; MinHash de‑dup  
 **Ranking**: BM25 indexes per team/category (memory‑mapped)
 
@@ -87,7 +87,7 @@ README.md
 1. **Prereqs**
    - Node 20+, PNPM/Yarn, Python 3.11+, Docker, Redis
    - Supabase project + service key
-   - Clerk project (JWTs for backend)
+   - Firebase project with Authentication enabled
 
 2. **Copy envs**
    ```bash
@@ -96,10 +96,12 @@ README.md
 
 3. **Key env vars**
    ```bash
-   # Auth
-   CLERK_JWT_ISSUER=...
-   CLERK_JWT_AUDIENCE=...
-   CLERK_JWT_PUBLIC_KEY=...
+   # Firebase Auth
+   FIREBASE_PROJECT_ID=...
+   FIREBASE_PRIVATE_KEY=...
+   FIREBASE_CLIENT_EMAIL=...
+   FIREBASE_WEB_API_KEY=...
+   FIREBASE_AUTH_DOMAIN=...
 
    # Supabase
    SUPABASE_URL=...
@@ -115,7 +117,7 @@ README.md
    ALLOWED_SOURCES=espn.com, theathletic.com, nba.com, mlb.com, nfl.com
 
    # LLM (summaries)
-   LLM_PROVIDER=openai|anthropic|... 
+   LLM_PROVIDER=openai|anthropic|...
    LLM_API_KEY=...
    ```
 
@@ -162,9 +164,9 @@ README.md
 ## 5) User Flows
 
 ### 5.1 Onboarding
-1) Authenticate with Clerk  
-2) Select sports (multi‑select) → drag to set order  
-3) Select teams for any sport that has teams  
+1) Authenticate with Firebase (email/password, Google, GitHub, etc.)
+2) Select sports (multi‑select) → drag to set order
+3) Select teams for any sport that has teams
 4) Persist preferences (see schema below)
 
 ### 5.2 Home
@@ -183,7 +185,7 @@ README.md
 ## 6) Database (Supabase Postgres, RLS enabled)
 
 **Users & Preferences**
-- `user_profile(id, clerk_user_id, display_name, location_geo, created_at)`
+- `user_profile(id, firebase_uid, display_name, email, location_geo, created_at)`
 - `user_sport_prefs(user_id, sport_id, rank)` (unique: user_id, rank)
 - `user_team_follows(user_id, team_id, affinity_score, created_at)`
 
@@ -218,14 +220,14 @@ README.md
 - GIN on `article(body_text, title)`; btree on (`published_at`, `team_id`)
 
 **RLS (examples)**
-- `user_profile`: user can `SELECT/UPDATE` where `clerk_user_id` matches JWT
+- `user_profile`: user can `SELECT/UPDATE` where `firebase_uid` matches JWT `sub` claim
 - Content tables: read‑only to authed users; writes only via service role
 
 ---
 
 ## 7) API Contracts (FastAPI)
 
-**Auth:** Validate Clerk JWT in middleware; inject `user_id`
+**Auth:** Validate Firebase JWT in middleware; inject `user_id` from `sub` claim
 
 ### 7.1 User & Prefs
 - `GET /me` → profile
@@ -324,7 +326,7 @@ README.md
 ---
 
 ## 11) Security & Compliance
-- Clerk JWT on every request; map to `user_profile`
+- Firebase JWT on every request; validate with Firebase Admin SDK; map to `user_profile`
 - Supabase RLS: least privilege; service role for workers
 - CORS allowlist; HTTPS only; non‑root containers
 - Secrets via orchestrator; read‑only FS where possible
@@ -366,7 +368,7 @@ README.md
 ## 15) Work Plan (Next 2 Sprints)
 
 **Sprint 1**
-- Scaffold Next.js + Clerk; onboarding UI (sports→order→teams)
+- Scaffold Next.js + Firebase Auth; onboarding UI (sports→order→teams)
 - FastAPI skeleton; `/me`, preferences endpoints; Supabase schema & RLS
 - Celery + Redis; Planner skeleton; Scores Agent (one league); WS channel
 - Home page w/ team + scores; Grafana stack up
@@ -417,8 +419,9 @@ README.md
 -- Users
 create table if not exists user_profile (
   id uuid primary key default gen_random_uuid(),
-  clerk_user_id text unique not null,
+  firebase_uid text unique not null,
   display_name text,
+  email text,
   location_geo jsonb,
   created_at timestamptz default now()
 );

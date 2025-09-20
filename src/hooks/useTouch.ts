@@ -50,7 +50,7 @@ export const useDeviceCapabilities = () => {
 
   useEffect(() => {
     const detectCapabilities = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const userAgent = navigator.userAgent || navigator.vendor || (window as Window & { opera?: string }).opera;
 
       setCapabilities({
         isTouchDevice: 'ontouchstart' in window || navigator.maxTouchPoints > 0,

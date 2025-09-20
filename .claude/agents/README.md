@@ -36,7 +36,7 @@ This folder defines **task-scoped subagents** for Claude Code. They help you pla
 
 - **planner** *(dev-only)* — Break down backlog into 1–4h tasks, delegate work, enforce gates.
 - **frontend** — Next.js pages (`/onboarding`, `/home`, `/settings`) + components (`ArticleCard`, `SummaryPanel`, `SportFilter`, `TeamRanker`). Consumes Backend OpenAPI types.
-- **backend** — FastAPI routes (Preferences, Feed, Summaries), Clerk JWT verify, Redis/Celery jobs. Publishes OpenAPI for FE.
+- **backend** — FastAPI routes (Preferences, Feed, Summaries), Firebase JWT verify, Redis/Celery jobs. Publishes OpenAPI for FE.
 - **db-etl** — Supabase/Postgres schemas, Alembic migrations, seeds, RSS/news ingestion with de-dup + FTS.
 - **research** — Curates `feeds.yaml`, validates sources, documents parser quirks.
 - **validation-testing** — Pytest, Vitest/RTL, Playwright e2e + `@axe-core/playwright`, visual snapshots.
@@ -74,8 +74,8 @@ Every handoff must include **typed I/O contracts**:
 - **Backend:**  
   “Use **backend** to add `GET /me/preferences`, Pydantic models, and update OpenAPI. Include httpx tests and retry/backoff policy.”
 
-- **Frontend:**  
-  “Use **frontend** to implement `SportFilter` with TanStack Query and Clerk guards. Generate TS from OpenAPI first and add RTL + Playwright tests.”
+- **Frontend:**
+  "Use **frontend** to implement `SportFilter` with TanStack Query and Firebase auth guards. Generate TS from OpenAPI first and add RTL + Playwright tests."
 
 - **DB/ETL:**  
   “Use **db-etl** to add `article_classification` table and a migration. Document indexes and add an idempotent seed.”

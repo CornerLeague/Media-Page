@@ -16,6 +16,9 @@ export default defineConfig({
     setupFiles: ['./src/test-setup.tsx'],
     css: true,
     reporters: ['verbose'],
+    // Exclude e2e tests from vitest (they should use playwright)
+    include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
+    exclude: ['node_modules', 'dist', 'e2e/**/*'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -25,6 +28,7 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.config.*',
         'dist/',
+        'e2e/',
       ],
       thresholds: {
         global: {
@@ -35,8 +39,13 @@ export default defineConfig({
         },
       },
     },
-    // Accessibility testing configuration
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    // Prevent hanging tests
+    testTimeout: 5000,
+    hookTimeout: 5000,
+    // Pool options for better stability
+    pool: 'forks',
+    isolate: true,
+    // Fail fast on hanging tests
+    bail: 3,
   },
 });

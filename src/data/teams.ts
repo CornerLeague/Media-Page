@@ -1,4 +1,4 @@
-import { Team } from '@/lib/types/onboarding-types';
+import { Team } from '@/types';
 
 export const TEAMS: Team[] = [
   // NFL Teams

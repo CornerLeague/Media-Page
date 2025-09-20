@@ -169,7 +169,6 @@ export interface UserProfile extends BaseEntity {
   avatar_url?: string;
   content_frequency: ContentFrequency;
   is_active: boolean;
-  onboarding_completed_at?: string;
   last_active_at: string;
   sport_preferences: UserSportPreference[];
   team_preferences: UserTeamPreference[];
@@ -620,20 +619,6 @@ export interface FormErrors {
 
 // ===== EXPORT ALL TYPES =====
 
-export type {
-  // Re-export existing frontend types for backward compatibility
-  UserPreferences,
-  SportPreference,
-  TeamPreference,
-  UserSettings,
-  NotificationSettings,
-  Sport as LegacySport,
-  League as LegacyLeague,
-  Team as LegacyTeam,
-  OnboardingStep,
-  OnboardingState,
-  OnboardingAction,
-} from './onboarding-types';
 
 // Default exports for commonly used types
 export default {

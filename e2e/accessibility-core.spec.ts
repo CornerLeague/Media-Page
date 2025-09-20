@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { performAccessibilityAnalysis, quickAccessibilityCheck, filterViolations, generateAccessibilityReport } from './utils/axe-helper';
 
 test.describe('Core Accessibility Compliance', () => {
   test.beforeEach(async ({ page, browserName }) => {
@@ -43,31 +43,24 @@ test.describe('Core Accessibility Compliance', () => {
   });
 
   test('application has no critical accessibility violations', async ({ page }) => {
-    const accessibilityScanResults = await new AxeBuilder({ page })
-      .exclude('[data-clerk-element]') // Exclude third-party auth elements
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']) // Focus on WCAG compliance
-      .analyze();
-
-    // Filter out design-related issues that need team attention but aren't blocking
-    const criticalViolations = accessibilityScanResults.violations.filter(violation => {
-      const nonBlockingIssues = [
-        'color-contrast',     // Design team issue
-        'landmark-one-main',  // Layout structure issue
-        'region'             // Layout structure issue
-      ];
-      return !nonBlockingIssues.includes(violation.id);
+    const results = await performAccessibilityAnalysis(page, {
+      exclude: ['[data-clerk-element]'], // Exclude third-party auth elements
+      withTags: ['wcag2a', 'wcag2aa', 'wcag21aa'], // Focus on WCAG compliance
+      allowFailures: false // Fail if axe-core cannot be initialized
     });
 
-    // Log all violations for team awareness
-    if (accessibilityScanResults.violations.length > 0) {
-      console.log('\n=== Accessibility Report ===');
-      accessibilityScanResults.violations.forEach(violation => {
-        console.log(`${violation.impact.toUpperCase()}: ${violation.id} - ${violation.description}`);
-        console.log(`  Help: ${violation.helpUrl}`);
-        console.log(`  Nodes affected: ${violation.nodes.length}`);
-      });
-      console.log('===========================\n');
-    }
+    // Filter out design-related issues that need team attention but aren't blocking
+    const criticalViolations = filterViolations(results.violations, {
+      excludeIds: ['color-contrast', 'landmark-one-main', 'region'],
+      onlyImpacts: ['critical', 'serious']
+    });
+
+    // Generate comprehensive report
+    generateAccessibilityReport(results, {
+      logToConsole: true,
+      includePassedRules: false,
+      maxNodesPerViolation: 3
+    });
 
     // Critical test: Should have no serious/critical accessibility violations
     expect(criticalViolations).toEqual([]);

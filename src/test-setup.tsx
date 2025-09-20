@@ -8,36 +8,12 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, vi } from 'vitest';
 
-// Type definitions for onboarding mock state
-interface MockOnboardingState {
-  currentStep: number;
-  steps: string[];
-  userPreferences: unknown;
-  isComplete: boolean;
-  errors: Record<string, string>;
-}
-
-interface MockUserPreferences {
-  id?: string;
-  sports?: unknown[];
-  teams?: unknown[];
-  preferences?: unknown;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-// Mock state variables for onboarding storage
-let mockOnboardingState: MockOnboardingState | null = null;
-let mockUserPreferences: MockUserPreferences | null = null;
 
 // Cleanup after each test
 afterEach(() => {
   cleanup();
   localStorage.clear();
   sessionStorage.clear();
-  // Reset mock state
-  mockOnboardingState = null;
-  mockUserPreferences = null;
 });
 
 // Mock window.matchMedia
@@ -352,17 +328,6 @@ vi.mock('@/data/sports', () => ({
   ],
 }));
 
-// Mock onboarding hooks to prevent hanging
-vi.mock('@/hooks/useOnboarding', () => ({
-  useOnboarding: vi.fn(() => ({
-    currentState: null,
-    updateSportsPreferences: vi.fn(),
-    updateTeamPreferences: vi.fn(),
-    updateUserSettings: vi.fn(),
-    completeOnboarding: vi.fn(),
-    clearOnboardingData: vi.fn(),
-  })),
-}));
 
 vi.mock('@/hooks/useTouch', () => ({
   useDeviceCapabilities: vi.fn(() => ({
@@ -376,56 +341,7 @@ vi.mock('@/hooks/useTouch', () => ({
   })),
 }));
 
-// Mock onboarding storage and validation
-vi.mock('@/lib/onboarding/localStorage', () => ({
-  OnboardingStorage: {
-    createDefaultOnboardingState: vi.fn(() => ({
-      currentStep: 0,
-      steps: [],
-      userPreferences: null,
-      isComplete: false,
-      errors: {},
-    })),
-    saveOnboardingState: vi.fn((state) => {
-      mockOnboardingState = state;
-    }),
-    loadOnboardingState: vi.fn(() => mockOnboardingState),
-    saveUserPreferences: vi.fn((prefs) => {
-      mockUserPreferences = prefs;
-    }),
-    loadUserPreferences: vi.fn(() => mockUserPreferences),
-  },
-}));
 
-vi.mock('@/lib/onboarding/validation', () => ({
-  OnboardingValidator: {
-    validateSportsSelection: vi.fn(() => ({
-      isValid: false,
-      errors: ['At least one sport must be selected'],
-    })),
-    validateTeamSelection: vi.fn(() => ({
-      isValid: false,
-      errors: ['Team selection validation failed'],
-    })),
-    validateUserSettings: vi.fn(() => ({
-      isValid: false,
-      errors: ['At least one news type must be enabled'],
-    })),
-    validateCompletePreferences: vi.fn((prefs: MockUserPreferences) => {
-      // Check if incomplete preferences (missing required fields)
-      if (!prefs.id || !prefs.sports || !prefs.teams || !prefs.preferences) {
-        return {
-          isValid: false,
-          errors: ['Missing required fields'],
-        };
-      }
-      return {
-        isValid: true,
-        errors: [],
-      };
-    }),
-  },
-}));
 
 // Global test constants
 export const TEST_CONSTANTS = {

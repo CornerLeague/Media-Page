@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { PasswordReset } from './PasswordReset';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -72,13 +74,23 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
     setError(null); // Clear error when user starts typing
   };
 
+  // Show password reset form if requested
+  if (showPasswordReset) {
+    return (
+      <PasswordReset
+        onBackToSignIn={() => setShowPasswordReset(false)}
+        className="w-full max-w-md mx-auto"
+      />
+    );
+  }
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">
+        <CardTitle className="text-2xl font-bold" data-testid="auth-form-title">
           {isSignUp ? 'Create Account' : 'Sign In'}
         </CardTitle>
-        <CardDescription>
+        <CardDescription data-testid="auth-form-description">
           {isSignUp
             ? 'Create your Corner League Media account'
             : 'Welcome back to Corner League Media'
@@ -99,6 +111,7 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
           onClick={handleGoogleSignIn}
           disabled={isLoading}
           className="w-full"
+          data-testid="google-signin-button"
         >
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -120,7 +133,7 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
         </div>
 
         {/* Email/Password Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-3">
+        <form onSubmit={handleEmailAuth} className="space-y-3" data-testid="email-auth-form">
           <div className="space-y-2">
             <Input
               type="email"
@@ -160,11 +173,26 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
             type="submit"
             className="w-full"
             disabled={isLoading || !formData.email || !formData.password}
+            data-testid={isSignUp ? "create-account-submit" : "sign-in-submit"}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSignUp ? 'Create Account' : 'Sign In'}
           </Button>
         </form>
+
+        {/* Forgot password link for sign in */}
+        {!isSignUp && (
+          <div className="text-center text-sm">
+            <Button
+              variant="link"
+              className="p-0 h-auto font-normal text-muted-foreground"
+              onClick={() => setShowPasswordReset(true)}
+              disabled={isLoading}
+            >
+              Forgot your password?
+            </Button>
+          </div>
+        )}
 
         {/* Toggle between sign in and sign up */}
         <div className="text-center text-sm">
@@ -180,6 +208,7 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
               setFormData({ email: '', password: '', confirmPassword: '' });
             }}
             disabled={isLoading}
+            data-testid="auth-mode-toggle"
           >
             {isSignUp ? 'Sign in' : 'Sign up'}
           </Button>

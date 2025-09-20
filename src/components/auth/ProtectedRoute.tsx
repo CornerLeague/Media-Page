@@ -24,10 +24,6 @@ export function ProtectedRoute({
     return <>{children}</>;
   }
 
-  // Allow unauthenticated access to onboarding for testing
-  if (location.pathname.includes('/onboarding')) {
-    return <>{children}</>;
-  }
 
   // Show loading while Firebase is initializing
   if (isLoading) {

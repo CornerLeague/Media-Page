@@ -1,11 +1,26 @@
 /**
  * API Client for Corner League Media Backend Integration
  *
- * This module provides a typed interface for FastAPI backend integration with Clerk authentication.
- * It includes Clerk JWT authentication, error handling, and request/response types.
+ * This module provides a typed interface for FastAPI backend integration with Firebase authentication.
+ * It includes Firebase JWT authentication, error handling, and request/response types.
  */
 
-import { UserPreferences } from './types/onboarding-types';
+// User Preferences Type Definition
+export interface UserPreferences {
+  newsTypes: Array<{
+    type: string;
+    enabled: boolean;
+    priority: number;
+  }>;
+  notifications: {
+    push: boolean;
+    email: boolean;
+    gameReminders: boolean;
+    newsAlerts: boolean;
+    scoreUpdates: boolean;
+  };
+  contentFrequency: 'minimal' | 'standard' | 'comprehensive';
+}
 
 // API Base Configuration
 export const API_CONFIG = {
@@ -14,21 +29,19 @@ export const API_CONFIG = {
   TIMEOUT: 10000,
 } as const;
 
-// Clerk Authentication Types
-export interface ClerkAuthContext {
-  getToken: () => Promise<string | null>;
-  isSignedIn: boolean;
+// Firebase Authentication Types
+export interface FirebaseAuthContext {
+  getIdToken: (forceRefresh?: boolean) => Promise<string | null>;
+  isAuthenticated: boolean;
   userId?: string;
 }
 
-export interface ClerkUser {
-  id: string;
-  emailAddress: string;
-  firstName?: string;
-  lastName?: string;
-  imageUrl?: string;
-  createdAt: number;
-  updatedAt: number;
+export interface FirebaseUser {
+  uid: string;
+  email: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+  emailVerified: boolean;
 }
 
 // API Response Types
@@ -57,7 +70,7 @@ export interface PaginatedResponse<T> {
 
 // User API Types
 export interface CreateUserRequest {
-  clerkUserId: string;
+  firebaseUserId: string;
   displayName?: string;
   email?: string;
   sports: Array<{
@@ -98,7 +111,7 @@ export interface UpdateUserPreferencesRequest {
 
 export interface UserProfile {
   id: string;
-  clerkUserId: string;
+  firebaseUserId: string;
   displayName?: string;
   email?: string;
   preferences: UserPreferences;
@@ -223,30 +236,30 @@ export interface HomeData {
 // HTTP Client Class
 export class ApiClient {
   private baseUrl: string;
-  private clerkAuth: ClerkAuthContext | null = null;
+  private firebaseAuth: FirebaseAuthContext | null = null;
 
   constructor(baseUrl = API_CONFIG.BASE_URL) {
     this.baseUrl = `${baseUrl}/api/${API_CONFIG.VERSION}`;
   }
 
-  // Clerk Authentication Methods
-  setClerkAuth(auth: ClerkAuthContext): void {
-    this.clerkAuth = auth;
+  // Firebase Authentication Methods
+  setFirebaseAuth(auth: FirebaseAuthContext): void {
+    this.firebaseAuth = auth;
   }
 
-  getClerkAuth(): ClerkAuthContext | null {
-    return this.clerkAuth;
+  getFirebaseAuth(): FirebaseAuthContext | null {
+    return this.firebaseAuth;
   }
 
   private async getAuthToken(): Promise<string | null> {
-    if (!this.clerkAuth || !this.clerkAuth.isSignedIn) {
+    if (!this.firebaseAuth || !this.firebaseAuth.isAuthenticated) {
       return null;
     }
 
     try {
-      return await this.clerkAuth.getToken();
+      return await this.firebaseAuth.getIdToken();
     } catch (error) {
-      console.error('Failed to get Clerk token:', error);
+      console.error('Failed to get Firebase token:', error);
       return null;
     }
   }
@@ -283,8 +296,8 @@ export class ApiClient {
       'Content-Type': 'application/json',
     };
 
-    // Add Clerk authentication if not skipped and user is signed in
-    if (!skipAuth && this.clerkAuth?.isSignedIn) {
+    // Add Firebase authentication if not skipped and user is signed in
+    if (!skipAuth && this.firebaseAuth?.isAuthenticated) {
       try {
         const token = await this.getAuthToken();
         if (token) {
@@ -432,17 +445,17 @@ export class ApiClientError extends Error {
 // Default client instance
 export const apiClient = new ApiClient();
 
-// Clerk-integrated API client hook
-export const useClerkApiClient = () => {
-  // This will be used in React components to set up the API client with Clerk auth
+// Firebase-integrated API client hook
+export const useFirebaseApiClient = () => {
+  // This will be used in React components to set up the API client with Firebase auth
   return apiClient;
 };
 
-// Hook for React Query integration with Clerk authentication
-export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
-  // Set Clerk auth if provided
-  if (clerkAuth) {
-    apiClient.setClerkAuth(clerkAuth);
+// Hook for React Query integration with Firebase authentication
+export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
+  // Set Firebase auth if provided
+  if (firebaseAuth) {
+    apiClient.setFirebaseAuth(firebaseAuth);
   }
 
   return {
@@ -451,7 +464,7 @@ export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
       queryKey: ['user', 'current'],
       queryFn: () => apiClient.getCurrentUser(),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      enabled: clerkAuth?.isSignedIn ?? false,
+      enabled: firebaseAuth?.isAuthenticated ?? false,
     }),
 
     // Home dashboard queries
@@ -459,7 +472,7 @@ export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
       queryKey: ['home', 'data'],
       queryFn: () => apiClient.getHomeData(),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      enabled: clerkAuth?.isSignedIn ?? false,
+      enabled: firebaseAuth?.isAuthenticated ?? false,
     }),
 
     // Sports feed queries
@@ -474,7 +487,7 @@ export const createApiQueryClient = (clerkAuth?: ClerkAuthContext) => {
       queryKey: ['team', 'dashboard', teamId],
       queryFn: () => apiClient.getTeamDashboard(teamId),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      enabled: (clerkAuth?.isSignedIn ?? false) && !!teamId,
+      enabled: (firebaseAuth?.isAuthenticated ?? false) && !!teamId,
     }),
   };
 };

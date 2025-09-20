@@ -2,7 +2,7 @@
 Pydantic schemas for API requests and responses
 """
 
-from .auth import ClerkUser, UserCreate, UserUpdate, UserProfile
+from .auth import FirebaseUser, UserCreate, UserUpdate, UserProfile
 from .sports import Sport, League, Team, SportResponse, LeagueResponse, TeamResponse
 from .content import (
     Article, ArticleResponse, ArticleCreate, ArticleUpdate,
@@ -23,7 +23,7 @@ from .common import PaginatedResponse, APIResponse, ErrorResponse
 
 __all__ = [
     # Auth
-    "ClerkUser",
+    "FirebaseUser",
     "UserCreate",
     "UserUpdate",
     "UserProfile",

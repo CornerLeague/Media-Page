@@ -8,7 +8,7 @@ info:
     real-time sports information, and fan experiences.
 
     ## Authentication
-    This API uses Clerk authentication with JWT Bearer tokens.
+    This API uses Firebase authentication with JWT Bearer tokens.
     Include the token in the Authorization header: `Bearer <token>`
 
     ## Rate Limiting
@@ -602,11 +602,11 @@ components:
     # Auth schemas
     UserCreate:
       type: object
-      required: [clerk_user_id]
+      required: [firebase_uid]
       properties:
-        clerk_user_id:
+        firebase_uid:
           type: string
-          description: Clerk authentication user ID
+          description: Firebase authentication user ID
         display_name:
           type: string
           maxLength: 100
@@ -701,12 +701,12 @@ components:
 
     UserProfile:
       type: object
-      required: [id, clerk_user_id, content_frequency, is_active, last_active_at, created_at, updated_at]
+      required: [id, firebase_uid, content_frequency, is_active, last_active_at, created_at, updated_at]
       properties:
         id:
           type: string
           format: uuid
-        clerk_user_id:
+        firebase_uid:
           type: string
         email:
           type: string

@@ -170,7 +170,7 @@ Based on the INITIAL.md specification, this project is intended to evolve into a
 - FastAPI backend integration
 - Supabase/PostgreSQL database
 - Real-time WebSocket updates
-- Clerk authentication
+- Firebase authentication
 - Redis caching and job queues
 - AI-powered content classification
 - Personalized team preferences

@@ -13,26 +13,40 @@ from .common import BaseSchema, IDMixin, TimestampMixin
 from .preferences import UserSportPreference, UserTeamPreference, UserNewsPreference, UserNotificationSettings
 
 
-class ClerkUser(BaseModel):
-    """Clerk user data from authentication"""
-    id: str
-    email_address: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    image_url: Optional[str] = None
-    created_at: int  # Unix timestamp
-    updated_at: int  # Unix timestamp
+class FirebaseUser(BaseModel):
+    """Firebase user data from authentication"""
+    uid: str = Field(..., description="Firebase user UID")
+    email: Optional[EmailStr] = None
+    display_name: Optional[str] = None
+    photo_url: Optional[str] = None
+    email_verified: bool = False
+    provider_data: Optional[dict] = Field(default_factory=dict)
+    custom_claims: Optional[dict] = Field(default_factory=dict)
 
     class Config:
-        # Handle Clerk's field naming
-        alias_generator = lambda field_name: field_name  # Keep original names
+        schema_extra = {
+            "example": {
+                "uid": "firebase_user_123abc456def",
+                "email": "user@example.com",
+                "display_name": "John Doe",
+                "photo_url": "https://example.com/avatar.jpg",
+                "email_verified": True,
+                "provider_data": [],
+                "custom_claims": {}
+            }
+        }
 
 
 class UserCreate(BaseModel):
     """Schema for creating a new user"""
-    clerk_user_id: str = Field(..., description="Clerk authentication user ID")
+    firebase_uid: str = Field(..., description="Firebase authentication user ID")
     display_name: Optional[str] = Field(None, max_length=100, description="User's display name")
     email: Optional[EmailStr] = Field(None, description="User's email address")
+    first_name: Optional[str] = Field(None, max_length=50, description="User's first name")
+    last_name: Optional[str] = Field(None, max_length=50, description="User's last name")
+    bio: Optional[str] = Field(None, description="User's biographical information")
+    location: Optional[str] = Field(None, max_length=100, description="User's location")
+    timezone: Optional[str] = Field("UTC", max_length=50, description="User's timezone")
 
     # Onboarding data
     sports: List[dict] = Field(default_factory=list, description="User's sport preferences")
@@ -42,7 +56,7 @@ class UserCreate(BaseModel):
     class Config:
         schema_extra = {
             "example": {
-                "clerk_user_id": "user_2abc123def456",
+                "firebase_uid": "firebase_user_123abc456def",
                 "display_name": "John Doe",
                 "email": "john@example.com",
                 "sports": [
@@ -83,6 +97,11 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     """Schema for updating user information"""
     display_name: Optional[str] = Field(None, max_length=100)
+    first_name: Optional[str] = Field(None, max_length=50)
+    last_name: Optional[str] = Field(None, max_length=50)
+    bio: Optional[str] = Field(None)
+    location: Optional[str] = Field(None, max_length=100)
+    timezone: Optional[str] = Field(None, max_length=50)
     content_frequency: Optional[ContentFrequency] = None
     avatar_url: Optional[str] = Field(None, max_length=500)
 
@@ -92,14 +111,21 @@ class UserUpdate(BaseModel):
 
 class UserProfile(BaseSchema, IDMixin, TimestampMixin):
     """Complete user profile response"""
-    clerk_user_id: str
+    firebase_uid: str
     email: Optional[str] = None
     display_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    timezone: Optional[str] = "UTC"
     content_frequency: ContentFrequency
     is_active: bool
+    is_verified: bool
     onboarding_completed_at: Optional[datetime] = None
     last_active_at: datetime
+    email_verified_at: Optional[datetime] = None
 
     # Relationships
     sport_preferences: List[UserSportPreference] = Field(default_factory=list)
@@ -116,14 +142,21 @@ class UserProfile(BaseSchema, IDMixin, TimestampMixin):
         schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
-                "clerk_user_id": "user_2abc123def456",
+                "firebase_uid": "firebase_user_123abc456def",
                 "email": "john@example.com",
                 "display_name": "John Doe",
-                "avatar_url": "https://images.clerk.dev/avatar.jpg",
+                "first_name": "John",
+                "last_name": "Doe",
+                "avatar_url": "https://example.com/avatar.jpg",
+                "bio": "Sports enthusiast and Lakers fan from Los Angeles",
+                "location": "Los Angeles, CA",
+                "timezone": "America/Los_Angeles",
                 "content_frequency": "standard",
                 "is_active": True,
+                "is_verified": True,
                 "onboarding_completed_at": "2025-01-17T12:00:00Z",
                 "last_active_at": "2025-01-17T12:00:00Z",
+                "email_verified_at": "2025-01-17T10:30:00Z",
                 "created_at": "2025-01-17T10:00:00Z",
                 "updated_at": "2025-01-17T12:00:00Z",
                 "sport_preferences": [

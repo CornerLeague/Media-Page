@@ -2,12 +2,12 @@
 User models for authentication and preferences
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Integer, Numeric, String, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Date, Integer, Numeric, String, ForeignKey, UniqueConstraint, Text
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,19 +17,22 @@ from .enums import ContentFrequency, NewsType
 
 class User(Base, UUIDMixin, TimestampMixin):
     """
-    Users table - extends Clerk authentication
+    Users table - Firebase authentication integration
     """
     __tablename__ = "users"
 
-    clerk_user_id: Mapped[str] = mapped_column(
-        String(255),
+    firebase_uid: Mapped[str] = mapped_column(
+        String(128),
         unique=True,
         nullable=False,
-        doc="Clerk authentication user ID"
+        index=True,
+        doc="Firebase authentication user ID"
     )
 
     email: Mapped[Optional[str]] = mapped_column(
         String(255),
+        unique=True,
+        index=True,
         doc="User's email address"
     )
 
@@ -38,9 +41,40 @@ class User(Base, UUIDMixin, TimestampMixin):
         doc="User's display name"
     )
 
+    first_name: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        doc="User's first name"
+    )
+
+    last_name: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        doc="User's last name"
+    )
+
     avatar_url: Mapped[Optional[str]] = mapped_column(
         String(500),
         doc="URL to user's avatar image"
+    )
+
+    bio: Mapped[Optional[str]] = mapped_column(
+        Text,
+        doc="User's biographical information"
+    )
+
+    date_of_birth: Mapped[Optional[date]] = mapped_column(
+        Date,
+        doc="User's date of birth"
+    )
+
+    location: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        doc="User's location (city, state)"
+    )
+
+    timezone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        default="UTC",
+        doc="User's preferred timezone"
     )
 
     content_frequency: Mapped[ContentFrequency] = mapped_column(
@@ -52,7 +86,15 @@ class User(Base, UUIDMixin, TimestampMixin):
         Boolean,
         default=True,
         nullable=False,
+        index=True,
         doc="Whether the user account is active"
+    )
+
+    is_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether the user's email is verified"
     )
 
     onboarding_completed_at: Mapped[Optional[datetime]] = mapped_column(
@@ -64,7 +106,13 @@ class User(Base, UUIDMixin, TimestampMixin):
         DateTime(timezone=True),
         server_default="NOW()",
         nullable=False,
+        index=True,
         doc="Timestamp of user's last activity"
+    )
+
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        doc="Timestamp when email was verified"
     )
 
     # Relationships
@@ -98,12 +146,24 @@ class User(Base, UUIDMixin, TimestampMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, clerk_id='{self.clerk_user_id}', display_name='{self.display_name}')>"
+        return f"<User(id={self.id}, firebase_uid='{self.firebase_uid}', display_name='{self.display_name}')>"
 
     @property
     def is_onboarded(self) -> bool:
         """Check if user has completed onboarding"""
         return self.onboarding_completed_at is not None
+
+    @property
+    def full_name(self) -> Optional[str]:
+        """Get user's full name"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name or self.last_name
+
+    @property
+    def display_identifier(self) -> str:
+        """Get the best identifier to display for the user"""
+        return self.display_name or self.full_name or self.email or f"User {self.id}"
 
 
 class UserSportPreference(Base, UUIDMixin, TimestampMixin):

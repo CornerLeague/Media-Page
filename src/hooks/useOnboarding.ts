@@ -1,9 +1,9 @@
 import { useReducer, useEffect, useCallback } from 'react';
-import { useUser, useAuth } from '@clerk/clerk-react';
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { OnboardingState, OnboardingAction, ONBOARDING_STEPS } from '@/lib/types/onboarding-types';
 import { OnboardingStorage } from '@/lib/onboarding/localStorage';
 import { OnboardingValidator } from '@/lib/onboarding/validation';
-import { apiClient, createApiQueryClient, ClerkAuthContext } from '@/lib/api-client';
+import { apiClient, createApiQueryClient, FirebaseAuthContext } from '@/lib/api-client';
 
 // Onboarding reducer
 function onboardingReducer(state: OnboardingState, action: OnboardingAction): OnboardingState {
@@ -89,8 +89,7 @@ function onboardingReducer(state: OnboardingState, action: OnboardingAction): On
 }
 
 export function useOnboarding() {
-  const { user, isLoaded: userLoaded } = useUser();
-  const { getToken, isSignedIn } = useAuth();
+  const { user, isLoading, isAuthenticated, getIdToken } = useFirebaseAuth();
 
   // Initialize state from localStorage or create default
   const [state, dispatch] = useReducer(onboardingReducer, null, () => {
@@ -98,30 +97,30 @@ export function useOnboarding() {
     return savedState || OnboardingStorage.createDefaultOnboardingState();
   });
 
-  // Set up API client with Clerk authentication
+  // Set up API client with Firebase authentication
   useEffect(() => {
-    if (isSignedIn && userLoaded) {
-      const clerkAuth: ClerkAuthContext = {
-        getToken,
-        isSignedIn,
-        userId: user?.id,
+    if (isAuthenticated && !isLoading) {
+      const firebaseAuth: FirebaseAuthContext = {
+        getIdToken,
+        isAuthenticated,
+        userId: user?.uid,
       };
-      apiClient.setClerkAuth(clerkAuth);
+      apiClient.setFirebaseAuth(firebaseAuth);
     }
-  }, [isSignedIn, userLoaded, user?.id, getToken]);
+  }, [isAuthenticated, isLoading, user?.uid, getIdToken]);
 
-  // Initialize user preferences with Clerk user data
+  // Initialize user preferences with Firebase user data
   useEffect(() => {
-    if (userLoaded && user && !state.userPreferences.id) {
+    if (!isLoading && user && !state.userPreferences.id) {
       dispatch({
         type: 'UPDATE_SPORTS',
         payload: state.userPreferences.sports || []
       });
 
-      // Set user ID from Clerk in preferences
+      // Set user ID from Firebase in preferences
       const updatedPreferences = {
         ...state.userPreferences,
-        id: user.id,
+        id: user.uid,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -129,7 +128,7 @@ export function useOnboarding() {
       // Update state with user info
       Object.assign(state.userPreferences, updatedPreferences);
     }
-  }, [userLoaded, user, state.userPreferences]);
+  }, [isLoading, user, state.userPreferences]);
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
@@ -220,7 +219,7 @@ export function useOnboarding() {
     }
 
     // Validate authentication before making API calls
-    if (!isSignedIn || !userLoaded || !user) {
+    if (!isAuthenticated || isLoading || !user) {
       dispatch({
         type: 'SET_ERROR',
         payload: {
@@ -247,11 +246,9 @@ export function useOnboarding() {
 
         // Save to backend via API
         const userData = {
-          clerkUserId: user.id,
-          displayName: user.firstName && user.lastName
-            ? `${user.firstName} ${user.lastName}`
-            : user.firstName || undefined,
-          email: user.primaryEmailAddress?.emailAddress,
+          firebaseUserId: user.uid,
+          displayName: user.displayName || undefined,
+          email: user.email || undefined,
           sports: state.userPreferences.sports?.map(sport => ({
             sportId: sport.sportId,
             name: sport.name,
@@ -283,7 +280,7 @@ export function useOnboarding() {
         };
 
         // Ensure API client has authentication token before making the call
-        const token = await getToken();
+        const token = await getIdToken();
         if (!token) {
           throw new Error('Unable to get authentication token');
         }
@@ -311,7 +308,7 @@ export function useOnboarding() {
     }
 
     return false;
-  }, [state.userPreferences, user, isSignedIn, userLoaded, getToken]);
+  }, [state.userPreferences, user, isAuthenticated, isLoading, getIdToken]);
 
   const resetOnboarding = useCallback(() => {
     OnboardingStorage.clearAll();

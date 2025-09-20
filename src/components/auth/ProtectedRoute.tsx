@@ -1,6 +1,6 @@
-import { useAuth } from "@clerk/clerk-react";
 import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode } from "react";
+import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,7 +11,7 @@ export function ProtectedRoute({
   children,
   redirectTo = "/auth/sign-in"
 }: ProtectedRouteProps) {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isAuthenticated, isLoading } = useFirebaseAuth();
   const location = useLocation();
 
   // Check if we're in test mode (E2E tests)
@@ -29,8 +29,8 @@ export function ProtectedRoute({
     return <>{children}</>;
   }
 
-  // Show loading while Clerk is initializing
-  if (!isLoaded) {
+  // Show loading while Firebase is initializing
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -42,9 +42,11 @@ export function ProtectedRoute({
   }
 
   // Redirect to auth if not signed in
-  if (!isSignedIn) {
+  if (!isAuthenticated) {
     return <Navigate to={redirectTo} replace />;
   }
 
   return <>{children}</>;
 }
+
+export default ProtectedRoute;

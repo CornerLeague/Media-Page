@@ -257,7 +257,7 @@ class Article(Base, UUIDMixin, TimestampMixin):
     """
     __tablename__ = "articles"
     __table_args__ = (
-        Index('idx_articles_published', 'published_at', postgresql_order_by='published_at DESC'),
+        Index('idx_articles_published', 'published_at'),
         Index('idx_articles_search_vector', 'search_vector', postgresql_using='gin'),
         Index('idx_articles_title_trgm', 'title', postgresql_using='gin', postgresql_ops={'title': 'gin_trgm_ops'}),
         CheckConstraint('word_count >= 0', name='check_valid_word_count'),

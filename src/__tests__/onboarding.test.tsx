@@ -26,22 +26,29 @@ import { OnboardingStorage } from '@/lib/onboarding/localStorage';
 import { OnboardingValidator } from '@/lib/onboarding/validation';
 import { runAccessibilityAudit } from '@/lib/accessibility';
 
-// Mock Clerk hooks
-vi.mock('@clerk/clerk-react', () => ({
-  useUser: vi.fn(() => ({
+// Mock Firebase auth hooks
+vi.mock('@/contexts/FirebaseAuthContext', () => ({
+  useFirebaseAuth: vi.fn(() => ({
     user: {
-      id: 'test-user-id',
-      firstName: 'Test',
-      lastName: 'User',
-      primaryEmailAddress: { emailAddress: 'test@example.com' }
+      uid: 'test-user-id',
+      displayName: 'Test User',
+      email: 'test@example.com',
+      photoURL: null,
+      emailVerified: true
     },
-    isLoaded: true
+    isLoading: false,
+    isAuthenticated: true,
+    getIdToken: vi.fn().mockResolvedValue('mock-firebase-token'),
+    signInWithGoogle: vi.fn(),
+    signInWithEmail: vi.fn(),
+    createAccountWithEmail: vi.fn(),
+    signOut: vi.fn(),
+    getUserId: vi.fn(() => 'test-user-id'),
+    getUserEmail: vi.fn(() => 'test@example.com'),
+    getUserDisplayName: vi.fn(() => 'Test User'),
+    getUserPhotoURL: vi.fn(() => null)
   })),
-  useAuth: vi.fn(() => ({
-    getToken: vi.fn().mockResolvedValue('mock-token'),
-    isSignedIn: true
-  })),
-  ClerkProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  FirebaseAuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
 // Mock accessibility audit to prevent slow tests

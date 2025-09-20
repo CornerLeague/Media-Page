@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@clerk/clerk-react';
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { createApiQueryClient } from '@/lib/api-client';
 import { HomeData, TeamDashboard } from '@/lib/api-client';
 
 export const useDashboard = () => {
-  const { getToken, isSignedIn, userId } = useAuth();
+  const { getIdToken, isAuthenticated, user } = useFirebaseAuth();
 
-  // Create API query client with Clerk auth
+  // Create API query client with Firebase auth
   const apiQueries = createApiQueryClient({
-    getToken,
-    isSignedIn: isSignedIn ?? false,
-    userId
+    getIdToken,
+    isAuthenticated: isAuthenticated ?? false,
+    userId: user?.uid
   });
 
   // Get home data (most-liked team)
@@ -64,12 +64,12 @@ export const useDashboard = () => {
 
 // Hook for getting team dashboard data for a specific team
 export const useTeamDashboard = (teamId: string) => {
-  const { getToken, isSignedIn, userId } = useAuth();
+  const { getIdToken, isAuthenticated, user } = useFirebaseAuth();
 
   const apiQueries = createApiQueryClient({
-    getToken,
-    isSignedIn: isSignedIn ?? false,
-    userId
+    getIdToken,
+    isAuthenticated: isAuthenticated ?? false,
+    userId: user?.uid
   });
 
   return useQuery<TeamDashboard, Error>({
@@ -81,12 +81,12 @@ export const useTeamDashboard = (teamId: string) => {
 
 // Hook for getting home data only
 export const useHomeData = () => {
-  const { getToken, isSignedIn, userId } = useAuth();
+  const { getIdToken, isAuthenticated, user } = useFirebaseAuth();
 
   const apiQueries = createApiQueryClient({
-    getToken,
-    isSignedIn: isSignedIn ?? false,
-    userId
+    getIdToken,
+    isAuthenticated: isAuthenticated ?? false,
+    userId: user?.uid
   });
 
   return useQuery<HomeData, Error>({

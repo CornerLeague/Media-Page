@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Dict, Any
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Numeric, String, func, UniqueConstraint
+from sqlalchemy import Date, DateTime, Numeric, String, func, UniqueConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,7 +44,7 @@ class UserInteraction(Base, UUIDMixin):
         doc="ID of the entity being interacted with"
     )
 
-    metadata: Mapped[Dict[str, Any]] = mapped_column(
+    interaction_metadata: Mapped[Dict[str, Any]] = mapped_column(
         JSONB,
         default=dict,
         doc="Additional metadata about the interaction"

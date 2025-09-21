@@ -212,11 +212,15 @@ class TestFirebaseAuthRequired:
             mock_validate.return_value.is_valid = True
             mock_validate.return_value.firebase_user = mock_firebase_user
 
-            # Mock the security dependency
+            # Mock the security dependency as async
             with patch.object(auth_dependency.middleware, 'security') as mock_security:
                 mock_credentials = Mock()
                 mock_credentials.credentials = "valid_token"
                 mock_security.return_value = mock_credentials
+                # Make the security method async-compatible
+                async def async_security_mock(*args, **kwargs):
+                    return mock_credentials
+                mock_security.side_effect = async_security_mock
 
                 result = await auth_dependency(mock_request)
 
@@ -229,7 +233,10 @@ class TestFirebaseAuthRequired:
         mock_request = Mock()
 
         with patch.object(auth_dependency.middleware, 'security') as mock_security:
-            mock_security.return_value = None
+            # Make the security method async-compatible
+            async def async_security_mock(*args, **kwargs):
+                return None
+            mock_security.side_effect = async_security_mock
 
             with pytest.raises(AuthError) as exc_info:
                 await auth_dependency(mock_request)
@@ -251,7 +258,10 @@ class TestFirebaseAuthRequired:
         with patch.object(auth_dependency_verified.middleware, 'security') as mock_security:
             mock_credentials = Mock()
             mock_credentials.credentials = "valid_token"
-            mock_security.return_value = mock_credentials
+            # Make the security method async-compatible
+            async def async_security_mock(*args, **kwargs):
+                return mock_credentials
+            mock_security.side_effect = async_security_mock
 
             with patch.object(auth_dependency_verified.middleware, 'validate_token') as mock_validate:
                 mock_validate.return_value.is_valid = True
@@ -270,50 +280,56 @@ class TestFirebaseInitialization:
     @patch.dict(os.environ, {"FIREBASE_PROJECT_ID": "test-project"})
     def test_initialize_firebase_with_service_account(self):
         """Test Firebase initialization with service account"""
-        with patch('os.path.exists') as mock_exists, \
-             patch('firebase_admin.credentials.Certificate') as mock_cert, \
-             patch('firebase_admin.initialize_app') as mock_init:
+        # Reset the global Firebase app state for this test
+        with patch('backend.api.middleware.auth._firebase_app', None):
+            with patch('os.path.exists') as mock_exists, \
+                 patch('firebase_admin.credentials.Certificate') as mock_cert, \
+                 patch('firebase_admin.initialize_app') as mock_init:
 
-            mock_exists.return_value = True
-            mock_app = Mock()
-            mock_init.return_value = mock_app
+                mock_exists.return_value = True
+                mock_app = Mock()
+                mock_init.return_value = mock_app
 
-            # Set environment variables
-            with patch.dict(os.environ, {
-                "FIREBASE_SERVICE_ACCOUNT_KEY_PATH": "/path/to/key.json"
-            }):
-                result = initialize_firebase()
+                # Set environment variables
+                with patch.dict(os.environ, {
+                    "FIREBASE_SERVICE_ACCOUNT_KEY_PATH": "/path/to/key.json"
+                }):
+                    result = initialize_firebase()
 
-                assert result == mock_app
-                mock_cert.assert_called_once_with("/path/to/key.json")
-                mock_init.assert_called_once()
+                    assert result == mock_app
+                    mock_cert.assert_called_once_with("/path/to/key.json")
+                    mock_init.assert_called_once()
 
     @patch.dict(os.environ, {"FIREBASE_PROJECT_ID": "test-project"})
     def test_initialize_firebase_with_default_credentials(self):
         """Test Firebase initialization with default credentials"""
-        with patch('os.path.exists') as mock_exists, \
-             patch('firebase_admin.credentials.ApplicationDefault') as mock_default, \
-             patch('firebase_admin.initialize_app') as mock_init:
+        # Reset the global Firebase app state for this test
+        with patch('backend.api.middleware.auth._firebase_app', None):
+            with patch('os.path.exists') as mock_exists, \
+                 patch('firebase_admin.credentials.ApplicationDefault') as mock_default, \
+                 patch('firebase_admin.initialize_app') as mock_init:
 
-            mock_exists.return_value = False
-            mock_app = Mock()
-            mock_init.return_value = mock_app
+                mock_exists.return_value = False
+                mock_app = Mock()
+                mock_init.return_value = mock_app
 
-            result = initialize_firebase()
+                result = initialize_firebase()
 
-            assert result == mock_app
-            mock_default.assert_called_once()
-            mock_init.assert_called_once()
+                assert result == mock_app
+                mock_default.assert_called_once()
+                mock_init.assert_called_once()
 
     def test_initialize_firebase_failure(self):
         """Test Firebase initialization failure"""
-        with patch('firebase_admin.initialize_app') as mock_init:
-            mock_init.side_effect = Exception("Firebase init failed")
+        # Reset the global Firebase app state for this test
+        with patch('backend.api.middleware.auth._firebase_app', None):
+            with patch('firebase_admin.initialize_app') as mock_init:
+                mock_init.side_effect = Exception("Firebase init failed")
 
-            with pytest.raises(RuntimeError) as exc_info:
-                initialize_firebase()
+                with pytest.raises(RuntimeError) as exc_info:
+                    initialize_firebase()
 
-            assert "Firebase initialization failed" in str(exc_info.value)
+                assert "Firebase initialization failed" in str(exc_info.value)
 
 
 class TestEndpointIntegration:

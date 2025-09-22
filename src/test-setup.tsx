@@ -131,11 +131,37 @@ interface RenderOptions {
   [key: string]: unknown;
 }
 
-export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}) {
+export function renderWithProviders(
+  ui: ReactElement,
+  options: RenderOptions & {
+    timeout?: number;
+    waitForAsync?: boolean;
+    queryOptions?: {
+      retry?: boolean;
+      staleTime?: number;
+      cacheTime?: number;
+    };
+  } = {}
+) {
+  const {
+    timeout = TEST_TIMEOUTS.STANDARD_RENDER,
+    waitForAsync = false,
+    queryOptions = {},
+    ...renderOptions
+  } = options;
+
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
+      queries: {
+        retry: false,
+        staleTime: 0,
+        cacheTime: 0,
+        ...queryOptions
+      },
+      mutations: {
+        retry: false,
+        ...queryOptions
+      },
     },
   });
 
@@ -149,7 +175,31 @@ export function renderWithProviders(ui: ReactElement, options: RenderOptions = {
     );
   }
 
-  return rtlRender(ui, { wrapper: Wrapper, ...options });
+  const renderResult = rtlRender(ui, { wrapper: Wrapper, ...renderOptions });
+
+  // If waitForAsync is true, wait for async operations to settle
+  if (waitForAsync) {
+    return {
+      ...renderResult,
+      waitForAsyncToSettle: async () => {
+        await waitForCondition(
+          () => {
+            const loadingElements = renderResult.container.querySelectorAll(
+              '[data-testid*="loading"], .loading, .animate-pulse, [aria-busy="true"]'
+            );
+            return loadingElements.length === 0;
+          },
+          {
+            timeout,
+            interval: TEST_TIMEOUTS.POLL_INTERVAL,
+            errorMessage: 'Async operations did not settle'
+          }
+        );
+      }
+    };
+  }
+
+  return renderResult;
 }
 
 // Accessibility testing utilities
@@ -183,7 +233,159 @@ export const axeMatchers = {
 // Extend expect with custom matchers
 expect.extend(axeMatchers);
 
-// Custom accessibility testing helpers
+// Enhanced async testing utilities with configurable timeouts
+export async function waitForElement(
+  selector: () => HTMLElement | null,
+  options: {
+    timeout?: number;
+    interval?: number;
+    errorMessage?: string;
+  } = {}
+): Promise<HTMLElement> {
+  const {
+    timeout = TEST_TIMEOUTS.STANDARD_RENDER,
+    interval = TEST_TIMEOUTS.POLL_INTERVAL,
+    errorMessage = 'Element not found within timeout'
+  } = options;
+
+  const startTime = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const checkElement = () => {
+      const element = selector();
+      if (element) {
+        resolve(element);
+        return;
+      }
+
+      if (Date.now() - startTime >= timeout) {
+        reject(new Error(`${errorMessage} (${timeout}ms)`));
+        return;
+      }
+
+      setTimeout(checkElement, interval);
+    };
+
+    checkElement();
+  });
+}
+
+export async function waitForCondition(
+  condition: () => boolean | Promise<boolean>,
+  options: {
+    timeout?: number;
+    interval?: number;
+    errorMessage?: string;
+  } = {}
+): Promise<void> {
+  const {
+    timeout = TEST_TIMEOUTS.STANDARD_RENDER,
+    interval = TEST_TIMEOUTS.POLL_INTERVAL,
+    errorMessage = 'Condition not met within timeout'
+  } = options;
+
+  const startTime = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const checkCondition = async () => {
+      try {
+        const result = await condition();
+        if (result) {
+          resolve();
+          return;
+        }
+      } catch (error) {
+        // Continue checking unless timeout is reached
+      }
+
+      if (Date.now() - startTime >= timeout) {
+        reject(new Error(`${errorMessage} (${timeout}ms)`));
+        return;
+      }
+
+      setTimeout(checkCondition, interval);
+    };
+
+    checkCondition();
+  });
+}
+
+export async function waitForApiCall<T>(
+  apiCall: () => Promise<T>,
+  options: {
+    timeout?: number;
+    retries?: number;
+    retryDelay?: number;
+    errorMessage?: string;
+  } = {}
+): Promise<T> {
+  const {
+    timeout = TEST_TIMEOUTS.API_CALL_STANDARD,
+    retries = 3,
+    retryDelay = 1000,
+    errorMessage = 'API call failed within timeout'
+  } = options;
+
+  let lastError: Error;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`${errorMessage} (${timeout}ms)`)), timeout)
+      );
+
+      return await Promise.race([apiCall(), timeoutPromise]);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+  }
+
+  throw lastError!;
+}
+
+export async function waitForAsyncComponent(
+  componentAction: () => Promise<void> | void,
+  options: {
+    loadingTimeout?: number;
+    errorTimeout?: number;
+    checkInterval?: number;
+  } = {}
+): Promise<void> {
+  const {
+    loadingTimeout = TEST_TIMEOUTS.DATA_LOADING,
+    errorTimeout = TEST_TIMEOUTS.API_CALL_STANDARD,
+    checkInterval = TEST_TIMEOUTS.POLL_INTERVAL
+  } = options;
+
+  // Execute the component action
+  await componentAction();
+
+  // Wait for loading states to complete
+  await waitForCondition(
+    () => {
+      const loadingElements = document.querySelectorAll('[data-testid*="loading"], .loading, .animate-pulse');
+      return loadingElements.length === 0;
+    },
+    {
+      timeout: loadingTimeout,
+      interval: checkInterval,
+      errorMessage: 'Component loading did not complete'
+    }
+  );
+
+  // Check for error states
+  const errorElements = document.querySelectorAll('[role="alert"], .error, [data-testid*="error"]');
+  if (errorElements.length > 0) {
+    const errorText = Array.from(errorElements).map(el => el.textContent).join(', ');
+    throw new Error(`Component error detected: ${errorText}`);
+  }
+}
+
+// Custom accessibility testing helpers with enhanced timeout handling
 export async function waitForAccessibility(element: HTMLElement) {
   // Wait for any pending updates
   await new Promise(resolve => setTimeout(resolve, 50));
@@ -194,7 +396,7 @@ export async function waitForAccessibility(element: HTMLElement) {
 
     // Add timeout protection to prevent hanging
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Accessibility audit timeout')), 2000)
+      setTimeout(() => reject(new Error('Accessibility audit timeout')), TEST_TIMEOUTS.A11Y_AUDIT)
     );
 
     const auditPromise = runAccessibilityAudit(element);
@@ -204,6 +406,64 @@ export async function waitForAccessibility(element: HTMLElement) {
     console.warn('Accessibility audit failed:', error);
     return { violations: [], passes: [], incomplete: [] };
   }
+}
+
+export async function waitForAccessibilityComplexPage(element: HTMLElement) {
+  return waitForAccessibility(element);
+}
+
+// Enhanced form testing utilities
+export async function waitForFormSubmission(
+  submitAction: () => Promise<void> | void,
+  options: {
+    timeout?: number;
+    expectSuccess?: boolean;
+    successSelector?: string;
+    errorSelector?: string;
+  } = {}
+): Promise<{ success: boolean; message?: string }> {
+  const {
+    timeout = TEST_TIMEOUTS.FORM_SUBMISSION,
+    expectSuccess = true,
+    successSelector = '[data-testid*="success"], .success',
+    errorSelector = '[role="alert"], .error, [data-testid*="error"]'
+  } = options;
+
+  await submitAction();
+
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    const checkResult = () => {
+      const successElements = document.querySelectorAll(successSelector);
+      const errorElements = document.querySelectorAll(errorSelector);
+
+      if (successElements.length > 0) {
+        const message = successElements[0].textContent || 'Success';
+        resolve({ success: true, message });
+        return;
+      }
+
+      if (errorElements.length > 0) {
+        const message = errorElements[0].textContent || 'Error occurred';
+        if (expectSuccess) {
+          reject(new Error(`Form submission failed: ${message}`));
+        } else {
+          resolve({ success: false, message });
+        }
+        return;
+      }
+
+      if (Date.now() - startTime >= timeout) {
+        reject(new Error(`Form submission timeout (${timeout}ms)`));
+        return;
+      }
+
+      setTimeout(checkResult, TEST_TIMEOUTS.POLL_INTERVAL);
+    };
+
+    checkResult();
+  });
 }
 
 // Performance testing helpers
@@ -343,9 +603,89 @@ vi.mock('@/hooks/useTouch', () => ({
 
 
 
-// Global test constants
+// Import centralized timeout configurations
+import { TEST_TIMEOUTS as SHARED_TIMEOUTS, VITEST_TIMEOUTS } from './utils/test-timeouts';
+import {
+  SmartContentWaiter,
+  ElementWaiter,
+  AsyncOperationWaiter,
+  waitStrategies,
+  type WaitOptions,
+  type ContentWaitOptions,
+  type ElementWaitOptions
+} from './utils/enhanced-wait-strategies';
+
+// Re-export shared timeouts for backward compatibility
+export const TEST_TIMEOUTS = SHARED_TIMEOUTS;
+
+// Re-export Vitest-specific timeouts from centralized config
+export const VITEST_TEST_TIMEOUTS = VITEST_TIMEOUTS;
+
+// Legacy constants for backward compatibility
 export const TEST_CONSTANTS = {
-  RENDER_TIMEOUT: 5000,
-  ANIMATION_TIMEOUT: 1000,
-  USER_ACTION_TIMEOUT: 1000,
+  RENDER_TIMEOUT: TEST_TIMEOUTS.STANDARD_RENDER,
+  ANIMATION_TIMEOUT: TEST_TIMEOUTS.STANDARD_ANIMATION,
+  USER_ACTION_TIMEOUT: TEST_TIMEOUTS.USER_ACTION,
 } as const;
+
+// Enhanced waiting strategies for testing
+export {
+  SmartContentWaiter,
+  ElementWaiter,
+  AsyncOperationWaiter,
+  waitStrategies,
+  type WaitOptions,
+  type ContentWaitOptions,
+  type ElementWaitOptions
+};
+
+// Export convenience functions for common testing scenarios
+export const testUtils = {
+  // Quick content loading check
+  waitForContent: async (container?: HTMLElement, timeout?: number) => {
+    await SmartContentWaiter.waitForContentLoaded(container || document.body, {
+      timeout: timeout || TEST_TIMEOUTS.DATA_FETCH,
+      checkVisibility: true
+    });
+  },
+
+  // Wait for form to be interactive
+  waitForFormReady: async (formSelector: string, timeout?: number) => {
+    return waitStrategies.forFormReady(formSelector, {
+      timeout: timeout || TEST_TIMEOUTS.FORM_INTERACTION
+    });
+  },
+
+  // Wait for modal to be ready
+  waitForModalReady: async (modalSelector?: string, timeout?: number) => {
+    return waitStrategies.forModalReady(modalSelector, {
+      timeout: timeout || TEST_TIMEOUTS.MODAL_OPEN
+    });
+  },
+
+  // Smart API call wrapper
+  apiCall: async <T>(call: () => Promise<T>, options?: {
+    timeout?: number;
+    retries?: number;
+    validate?: (response: T) => boolean;
+  }) => {
+    return AsyncOperationWaiter.waitForAsyncOperation(call, {
+      timeout: options?.timeout || TEST_TIMEOUTS.API_STANDARD,
+      retries: options?.retries || 3,
+      validateResult: options?.validate
+    });
+  },
+
+  // Enhanced element stability check
+  waitForStableElement: async (selector: string, container?: HTMLElement, timeout?: number) => {
+    return ElementWaiter.waitForElementStable(selector, container || document, {
+      timeout: timeout || TEST_TIMEOUTS.ELEMENT_STABLE,
+      checkStability: true
+    });
+  }
+};
+
+// Backward compatibility aliases for existing tests
+export const smartWaitFor = SmartContentWaiter.waitForContentLoaded;
+export const waitForStableElement = ElementWaiter.waitForElementStable;
+export const waitForAsyncOp = AsyncOperationWaiter.waitForAsyncOperation;

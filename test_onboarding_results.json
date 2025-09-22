@@ -1,0 +1,391 @@
+{
+  "total_tests": 6,
+  "successful_tests": 4,
+  "success_rate": 0.6666666666666666,
+  "test_results": {
+    "backend_health": {
+      "status_code": 200,
+      "response_time": 0.006154,
+      "data": {
+        "status": "healthy",
+        "service": "corner-league-api",
+        "version": "1.0.0"
+      }
+    },
+    "sports_api": {
+      "status_code": 200,
+      "total_sports": 7,
+      "sports_with_teams": 7,
+      "validation_errors": [],
+      "sample_sports": [
+        {
+          "id": "2350948d-f6d4-4a85-9358-b76ed505aea2",
+          "name": "Football",
+          "slug": "football",
+          "has_teams": true,
+          "icon": null,
+          "is_active": true,
+          "display_order": 1,
+          "leagues_count": null
+        },
+        {
+          "id": "498127a1-e061-4386-89ce-a5f00692004c",
+          "name": "Basketball",
+          "slug": "basketball",
+          "has_teams": true,
+          "icon": null,
+          "is_active": true,
+          "display_order": 2,
+          "leagues_count": null
+        },
+        {
+          "id": "23df2010-047e-417a-a036-ee6c2e7b5717",
+          "name": "Baseball",
+          "slug": "baseball",
+          "has_teams": true,
+          "icon": null,
+          "is_active": true,
+          "display_order": 3,
+          "leagues_count": null
+        }
+      ]
+    },
+    "team_search": {
+      "team_search_results": [
+        {
+          "query": "Chiefs",
+          "found": true,
+          "team_name": "Chiefs",
+          "team_market": "Kansas City",
+          "display_name": "Kansas City Chiefs",
+          "sport_id": "2350948d-f6d4-4a85-9358-b76ed505aea2",
+          "has_leagues": false
+        },
+        {
+          "query": "Lakers",
+          "found": true,
+          "team_name": "Lakers",
+          "team_market": "Los Angeles",
+          "display_name": "Los Angeles Lakers",
+          "sport_id": "498127a1-e061-4386-89ce-a5f00692004c",
+          "has_leagues": false
+        },
+        {
+          "query": "Yankees",
+          "found": true,
+          "team_name": "Yankees",
+          "team_market": "New York",
+          "display_name": "New York Yankees",
+          "sport_id": "23df2010-047e-417a-a036-ee6c2e7b5717",
+          "has_leagues": false
+        },
+        {
+          "query": "Rangers",
+          "found": true,
+          "team_name": "Rangers",
+          "team_market": "Rangers",
+          "display_name": "Rangers Rangers",
+          "sport_id": "61a964ee-563b-4ccd-b277-b429ec1c57ab",
+          "has_leagues": false
+        }
+      ],
+      "success_rate": 1.0
+    },
+    "team_leagues": {
+      "team_id": "e2a09f1e-2177-47bb-a8f4-3000a9368d30",
+      "team_name": "Kansas City Chiefs",
+      "leagues_endpoint_status": 500,
+      "multi_league_endpoint_status": 404,
+      "has_league_id": false,
+      "leagues_data": null,
+      "multi_league_data": null
+    },
+    "api_client": {
+      "endpoint_tests": [
+        {
+          "endpoint": "GET /api/v1/users/me",
+          "status_code": 401,
+          "expected_auth_required": true,
+          "success": false,
+          "message": "Unexpected status: 401"
+        },
+        {
+          "endpoint": "PUT /api/v1/users/me",
+          "status_code": 401,
+          "expected_auth_required": true,
+          "success": false,
+          "message": "Unexpected status: 401"
+        },
+        {
+          "endpoint": "GET /api/v1/me/preferences",
+          "status_code": 401,
+          "expected_auth_required": true,
+          "success": false,
+          "message": "Unexpected status: 401"
+        },
+        {
+          "endpoint": "PUT /api/v1/me/preferences",
+          "status_code": 401,
+          "expected_auth_required": true,
+          "success": false,
+          "message": "Unexpected status: 401"
+        },
+        {
+          "endpoint": "GET /api/sports",
+          "status_code": 200,
+          "expected_auth_required": false,
+          "success": true,
+          "message": "Public endpoint accessible"
+        },
+        {
+          "endpoint": "GET /api/teams/search",
+          "status_code": 200,
+          "expected_auth_required": false,
+          "success": true,
+          "message": "Public endpoint accessible"
+        }
+      ],
+      "overall_success": false
+    },
+    "error_handling": {
+      "error_handling_tests": [
+        {
+          "test_name": "Invalid UUID in team search",
+          "path": "/api/leagues/invalid-uuid/teams",
+          "expected_status": 422,
+          "actual_status": 422,
+          "success": true,
+          "error_structure_valid": true,
+          "description": "Should return validation error for invalid UUID"
+        },
+        {
+          "test_name": "Non-existent team search",
+          "path": "/api/teams/search?query=NonExistentTeamXYZ123",
+          "expected_status": 200,
+          "actual_status": 200,
+          "success": true,
+          "error_structure_valid": true,
+          "description": "Should return empty results for non-existent team"
+        },
+        {
+          "test_name": "Non-existent endpoint",
+          "path": "/api/non-existent-endpoint",
+          "expected_status": 404,
+          "actual_status": 404,
+          "success": true,
+          "error_structure_valid": true,
+          "description": "Should return 404 for non-existent endpoints"
+        }
+      ],
+      "overall_success": true
+    }
+  },
+  "detailed_results": [
+    {
+      "test_name": "Backend Health Check",
+      "success": true,
+      "details": {
+        "status_code": 200,
+        "response_time": 0.006154,
+        "data": {
+          "status": "healthy",
+          "service": "corner-league-api",
+          "version": "1.0.0"
+        }
+      },
+      "timestamp": "2025-09-21T20:27:22.336907"
+    },
+    {
+      "test_name": "Sports API Endpoint",
+      "success": true,
+      "details": {
+        "status_code": 200,
+        "total_sports": 7,
+        "sports_with_teams": 7,
+        "validation_errors": [],
+        "sample_sports": [
+          {
+            "id": "2350948d-f6d4-4a85-9358-b76ed505aea2",
+            "name": "Football",
+            "slug": "football",
+            "has_teams": true,
+            "icon": null,
+            "is_active": true,
+            "display_order": 1,
+            "leagues_count": null
+          },
+          {
+            "id": "498127a1-e061-4386-89ce-a5f00692004c",
+            "name": "Basketball",
+            "slug": "basketball",
+            "has_teams": true,
+            "icon": null,
+            "is_active": true,
+            "display_order": 2,
+            "leagues_count": null
+          },
+          {
+            "id": "23df2010-047e-417a-a036-ee6c2e7b5717",
+            "name": "Baseball",
+            "slug": "baseball",
+            "has_teams": true,
+            "icon": null,
+            "is_active": true,
+            "display_order": 3,
+            "leagues_count": null
+          }
+        ]
+      },
+      "timestamp": "2025-09-21T20:27:22.350770"
+    },
+    {
+      "test_name": "Team Search Functionality",
+      "success": true,
+      "details": {
+        "team_search_results": [
+          {
+            "query": "Chiefs",
+            "found": true,
+            "team_name": "Chiefs",
+            "team_market": "Kansas City",
+            "display_name": "Kansas City Chiefs",
+            "sport_id": "2350948d-f6d4-4a85-9358-b76ed505aea2",
+            "has_leagues": false
+          },
+          {
+            "query": "Lakers",
+            "found": true,
+            "team_name": "Lakers",
+            "team_market": "Los Angeles",
+            "display_name": "Los Angeles Lakers",
+            "sport_id": "498127a1-e061-4386-89ce-a5f00692004c",
+            "has_leagues": false
+          },
+          {
+            "query": "Yankees",
+            "found": true,
+            "team_name": "Yankees",
+            "team_market": "New York",
+            "display_name": "New York Yankees",
+            "sport_id": "23df2010-047e-417a-a036-ee6c2e7b5717",
+            "has_leagues": false
+          },
+          {
+            "query": "Rangers",
+            "found": true,
+            "team_name": "Rangers",
+            "team_market": "Rangers",
+            "display_name": "Rangers Rangers",
+            "sport_id": "61a964ee-563b-4ccd-b277-b429ec1c57ab",
+            "has_leagues": false
+          }
+        ],
+        "success_rate": 1.0
+      },
+      "timestamp": "2025-09-21T20:27:22.391268"
+    },
+    {
+      "test_name": "Team Leagues Association",
+      "success": false,
+      "details": {
+        "team_id": "e2a09f1e-2177-47bb-a8f4-3000a9368d30",
+        "team_name": "Kansas City Chiefs",
+        "leagues_endpoint_status": 500,
+        "multi_league_endpoint_status": 404,
+        "has_league_id": false,
+        "leagues_data": null,
+        "multi_league_data": null
+      },
+      "timestamp": "2025-09-21T20:27:22.408298"
+    },
+    {
+      "test_name": "API Client Endpoints",
+      "success": false,
+      "details": {
+        "endpoint_tests": [
+          {
+            "endpoint": "GET /api/v1/users/me",
+            "status_code": 401,
+            "expected_auth_required": true,
+            "success": false,
+            "message": "Unexpected status: 401"
+          },
+          {
+            "endpoint": "PUT /api/v1/users/me",
+            "status_code": 401,
+            "expected_auth_required": true,
+            "success": false,
+            "message": "Unexpected status: 401"
+          },
+          {
+            "endpoint": "GET /api/v1/me/preferences",
+            "status_code": 401,
+            "expected_auth_required": true,
+            "success": false,
+            "message": "Unexpected status: 401"
+          },
+          {
+            "endpoint": "PUT /api/v1/me/preferences",
+            "status_code": 401,
+            "expected_auth_required": true,
+            "success": false,
+            "message": "Unexpected status: 401"
+          },
+          {
+            "endpoint": "GET /api/sports",
+            "status_code": 200,
+            "expected_auth_required": false,
+            "success": true,
+            "message": "Public endpoint accessible"
+          },
+          {
+            "endpoint": "GET /api/teams/search",
+            "status_code": 200,
+            "expected_auth_required": false,
+            "success": true,
+            "message": "Public endpoint accessible"
+          }
+        ],
+        "overall_success": false
+      },
+      "timestamp": "2025-09-21T20:27:22.432533"
+    },
+    {
+      "test_name": "Error Handling",
+      "success": true,
+      "details": {
+        "error_handling_tests": [
+          {
+            "test_name": "Invalid UUID in team search",
+            "path": "/api/leagues/invalid-uuid/teams",
+            "expected_status": 422,
+            "actual_status": 422,
+            "success": true,
+            "error_structure_valid": true,
+            "description": "Should return validation error for invalid UUID"
+          },
+          {
+            "test_name": "Non-existent team search",
+            "path": "/api/teams/search?query=NonExistentTeamXYZ123",
+            "expected_status": 200,
+            "actual_status": 200,
+            "success": true,
+            "error_structure_valid": true,
+            "description": "Should return empty results for non-existent team"
+          },
+          {
+            "test_name": "Non-existent endpoint",
+            "path": "/api/non-existent-endpoint",
+            "expected_status": 404,
+            "actual_status": 404,
+            "success": true,
+            "error_structure_valid": true,
+            "description": "Should return 404 for non-existent endpoints"
+          }
+        ],
+        "overall_success": true
+      },
+      "timestamp": "2025-09-21T20:27:22.440610"
+    }
+  ]
+}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sports Component</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .sports-card {
+            background: white;
+            border: 2px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .sports-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #3b82f6;
+        }
+        .sports-card.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .sports-card:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        .icon {
+            font-size: 32px;
+        }
+        .content {
+            flex: 1;
+        }
+        .name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .rank {
+            color: #3b82f6;
+            font-size: 14px;
+        }
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #666;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .checkmark.checked {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+        .drag-handle {
+            cursor: grab;
+            color: #999;
+            padding: 4px;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sports Selection Cards Test</h1>
+    <p>Click anywhere on a card to select/deselect it. Use keyboard (Tab + Enter/Space) for accessibility.</p>
+
+    <div class="sports-card"
+         role="button"
+         tabindex="0"
+         data-sport-id="nfl"
+         aria-selected="false"
+         aria-label="Select NFL">
+        <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+        <div class="icon">🏈</div>
+        <div class="content">
+            <div class="name">NFL</div>
+            <div class="rank" style="display: none;">1st</div>
+        </div>
+        <div class="checkmark"></div>
+    </div>
+
+    <div class="sports-card"
+         role="button"
+         tabindex="0"
+         data-sport-id="nba"
+         aria-selected="false"
+         aria-label="Select NBA">
+        <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+        <div class="icon">🏀</div>
+        <div class="content">
+            <div class="name">NBA</div>
+            <div class="rank" style="display: none;">2nd</div>
+        </div>
+        <div class="checkmark"></div>
+    </div>
+
+    <div class="sports-card"
+         role="button"
+         tabindex="0"
+         data-sport-id="mlb"
+         aria-selected="false"
+         aria-label="Select MLB">
+        <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+        <div class="icon">⚾</div>
+        <div class="content">
+            <div class="name">MLB</div>
+            <div class="rank" style="display: none;">3rd</div>
+        </div>
+        <div class="checkmark"></div>
+    </div>
+
+    <script>
+        let selectedCount = 0;
+        const maxSelections = 5;
+
+        function updateCard(card, isSelected, rank = null) {
+            const checkmark = card.querySelector('.checkmark');
+            const rankElement = card.querySelector('.rank');
+
+            if (isSelected) {
+                card.classList.add('selected');
+                card.setAttribute('aria-selected', 'true');
+                card.setAttribute('aria-label', `Deselect ${card.querySelector('.name').textContent}, currently ranked ${rank}`);
+                checkmark.classList.add('checked');
+                checkmark.innerHTML = '✓';
+                rankElement.textContent = rank;
+                rankElement.style.display = 'block';
+            } else {
+                card.classList.remove('selected');
+                card.setAttribute('aria-selected', 'false');
+                card.setAttribute('aria-label', `Select ${card.querySelector('.name').textContent}`);
+                checkmark.classList.remove('checked');
+                checkmark.innerHTML = '';
+                rankElement.style.display = 'none';
+            }
+        }
+
+        function handleCardClick(event) {
+            // Prevent click if it's on the drag handle
+            if (event.target.closest('.drag-handle')) {
+                return;
+            }
+
+            const card = event.currentTarget;
+            const isSelected = card.classList.contains('selected');
+
+            if (!isSelected && selectedCount >= maxSelections) {
+                alert('Maximum 5 sports can be selected!');
+                return;
+            }
+
+            if (isSelected) {
+                updateCard(card, false);
+                selectedCount--;
+                // Update ranks for remaining selected cards
+                updateRanks();
+            } else {
+                selectedCount++;
+                const ranks = ['1st', '2nd', '3rd', '4th', '5th'];
+                updateCard(card, true, ranks[selectedCount - 1]);
+            }
+        }
+
+        function updateRanks() {
+            const selectedCards = Array.from(document.querySelectorAll('.sports-card.selected'));
+            const ranks = ['1st', '2nd', '3rd', '4th', '5th'];
+
+            selectedCards.forEach((card, index) => {
+                const rankElement = card.querySelector('.rank');
+                rankElement.textContent = ranks[index];
+                card.setAttribute('aria-label', `Deselect ${card.querySelector('.name').textContent}, currently ranked ${ranks[index]}`);
+            });
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleCardClick(event);
+            }
+        }
+
+        // Add event listeners
+        document.querySelectorAll('.sports-card').forEach(card => {
+            card.addEventListener('click', handleCardClick);
+            card.addEventListener('keydown', handleKeyDown);
+        });
+
+        // Prevent drag handle clicks from bubbling
+        document.querySelectorAll('.drag-handle').forEach(handle => {
+            handle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('Drag handle clicked - would start drag operation');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -57,6 +57,22 @@ class Sport(Base, UUIDMixin, TimestampMixin):
         doc="Order for displaying sports in UI"
     )
 
+    icon_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        doc="URL to sport icon image for onboarding"
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        doc="Brief description of the sport for onboarding"
+    )
+
+    popularity_rank: Mapped[int] = mapped_column(
+        Integer,
+        default=999,
+        doc="Popularity ranking for ordering in onboarding (lower = more popular)"
+    )
+
     # Relationships
     leagues: Mapped[List["League"]] = relationship(
         "League",

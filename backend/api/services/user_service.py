@@ -327,3 +327,61 @@ async def require_onboarded_user(
             headers={"X-Error-Code": "ONBOARDING_REQUIRED"}
         )
     return db_user
+
+
+async def require_onboarding_in_progress(
+    db_user: User = Depends(get_current_db_user)
+) -> User:
+    """
+    Dependency that requires user to be in onboarding process
+
+    Args:
+        db_user: Current authenticated database user
+
+    Returns:
+        User model if onboarding is in progress
+
+    Raises:
+        HTTPException: If user has already completed onboarding
+    """
+    if db_user.is_onboarded:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Onboarding already completed",
+            headers={"X-Error-Code": "ONBOARDING_COMPLETED"}
+        )
+    return db_user
+
+
+async def require_onboarding_step(
+    required_step: int,
+    db_user: User = Depends(get_current_db_user)
+) -> User:
+    """
+    Dependency factory that requires user to be on a specific onboarding step
+
+    Args:
+        required_step: The required onboarding step (1-5)
+        db_user: Current authenticated database user
+
+    Returns:
+        User model if on the required step
+
+    Raises:
+        HTTPException: If user is not on the required step
+    """
+    if db_user.is_onboarded:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Onboarding already completed",
+            headers={"X-Error-Code": "ONBOARDING_COMPLETED"}
+        )
+
+    if db_user.current_onboarding_step != required_step:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Expected onboarding step {required_step}, but user is on step {db_user.current_onboarding_step}",
+            headers={"X-Error-Code": "INVALID_ONBOARDING_STEP"}
+        )
+
+    return db_user

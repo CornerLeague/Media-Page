@@ -28,7 +28,14 @@ export const TopNavBar = () => {
         </h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <ChevronDown className="h-6 w-6 text-foreground cursor-pointer" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-1 text-foreground hover:bg-muted/50"
+              aria-label="Select sports league"
+            >
+              <ChevronDown className="h-6 w-6" />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem>NFL</DropdownMenuItem>

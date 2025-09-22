@@ -69,7 +69,8 @@ class FirebaseConfig(BaseSettings):
 
     model_config = {
         "env_file": ".env",
-        "case_sensitive": False
+        "case_sensitive": False,
+        "extra": "ignore"  # Allow extra fields to prevent validation errors
     }
 
     @property
@@ -100,12 +101,19 @@ class FirebaseConfig(BaseSettings):
             )
 
 
-# Global configuration instance
-firebase_config = FirebaseConfig()
+# Global configuration instance - handle missing required fields gracefully
+try:
+    firebase_config = FirebaseConfig()
+except Exception as e:
+    # Create a default config for development if environment variables are missing
+    print(f"Warning: Firebase configuration failed: {e}")
+    firebase_config = None
 
 
 def get_firebase_config() -> FirebaseConfig:
     """Get Firebase configuration instance"""
+    if firebase_config is None:
+        raise RuntimeError("Firebase configuration is not available")
     return firebase_config
 
 
@@ -117,6 +125,14 @@ def validate_firebase_environment() -> dict:
         dict: Validation results and configuration status
     """
     try:
+        if firebase_config is None:
+            return {
+                "valid": False,
+                "error": "Firebase configuration is not available (missing environment variables)",
+                "project_id": None,
+                "use_emulator": False
+            }
+
         config = get_firebase_config()
         config.validate_configuration()
 

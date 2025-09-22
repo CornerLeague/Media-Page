@@ -11,7 +11,7 @@ from sqlalchemy.orm import DeclarativeBase
 # Database URL from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:password@localhost:5432/corner_league"
+    "sqlite+aiosqlite:////Users/newmac/Desktop/Corner League Media 1/backend/sports_platform.db"
 )
 
 # Create async engine

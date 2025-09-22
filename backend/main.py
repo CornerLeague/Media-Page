@@ -31,6 +31,8 @@ from backend.api.schemas.preferences import (
     TeamsPreferencesUpdate,
     NotificationPreferencesUpdate
 )
+from backend.api.routers.team_selection import router as team_selection_router
+from backend.api.routers.sports import router as sports_router
 from backend.database import get_async_session
 from backend.api.schemas.auth import FirebaseUser, UserProfile
 from backend.api.exceptions import register_exception_handlers
@@ -359,6 +361,14 @@ async def update_notification_preferences_api_v1(
 
 # Mount API v1 sub-application
 app.mount("/api/v1", api_v1)
+
+# Include routers in main app
+app.include_router(team_selection_router)
+app.include_router(sports_router)
+
+# Also include routers in API v1
+api_v1.include_router(team_selection_router)
+api_v1.include_router(sports_router)
 
 
 # Health check endpoints

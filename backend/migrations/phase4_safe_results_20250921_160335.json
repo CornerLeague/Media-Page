@@ -1,0 +1,32 @@
+{
+  "migration_info": {
+    "phase": "4 - SAFE Schema Finalization",
+    "timestamp": "2025-09-21T16:03:35.804597",
+    "database": "sports_platform.db",
+    "backup": "sports_platform.db_phase4_safe_rollback_20250921_160335.db"
+  },
+  "validation_results": {
+    "pre_migration": {
+      "timestamp": "2025-09-21T16:03:35.799078",
+      "phase": "pre-migration",
+      "checks": {
+        "total_teams": 203,
+        "active_memberships": 142,
+        "teams_with_memberships": 125,
+        "has_deprecated_league_id": true
+      }
+    },
+    "post_migration": {
+      "timestamp": "2025-09-21T16:03:35.803810",
+      "phase": "post-migration",
+      "checks": {
+        "deprecated_column_removed": true,
+        "total_teams": 203,
+        "active_memberships": 142,
+        "multi_league_teams_found": 5,
+        "foreign_key_violations": 0
+      }
+    }
+  },
+  "migration_status": "completed"
+}

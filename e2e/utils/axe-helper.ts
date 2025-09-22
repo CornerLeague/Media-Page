@@ -8,6 +8,25 @@
 import { Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+// Import timeout configurations
+const TIMEOUTS = {
+  A11Y_AUDIT: 8000,
+  A11Y_AUDIT_COMPLEX: 15000,
+  NETWORK_IDLE: 10000,
+  STANDARD_RENDER: 3000,
+} as const;
+
+// Environment adjustments
+const isCI = process.env.CI === 'true';
+const isDebug = process.env.DEBUG === 'true';
+
+function adjustTimeout(baseTimeout: number): number {
+  let multiplier = 1;
+  if (isDebug) multiplier = 3;
+  else if (isCI) multiplier = 2;
+  return Math.round(baseTimeout * multiplier);
+}
+
 export interface AxeOptions {
   exclude?: string[];
   withTags?: string[];
@@ -15,6 +34,7 @@ export interface AxeOptions {
   include?: string[];
   allowFailures?: boolean;
   timeout?: number;
+  complexity?: 'standard' | 'complex';
 }
 
 export interface AxeResults {
@@ -36,17 +56,38 @@ export interface AxeResults {
 export async function ensureAxeInitialized(page: Page): Promise<boolean> {
   try {
     // Check if axe is already available
-    const axeExists = await page.evaluate(() => {
-      return typeof (window as any).axe !== 'undefined' &&
-             typeof (window as any).axe.run === 'function';
+    const axeStatus = await page.evaluate(() => {
+      const axeExists = typeof (window as any).axe !== 'undefined' &&
+                       typeof (window as any).axe.run === 'function';
+      const globalSetup = (window as any).__AXE_GLOBAL_SETUP__;
+      const globalLoaded = (window as any).__AXE_GLOBAL_LOADED__;
+      const globalFailed = (window as any).__AXE_GLOBAL_FAILED__;
+
+      return {
+        axeExists,
+        globalSetup,
+        globalLoaded,
+        globalFailed
+      };
     });
 
-    if (axeExists) {
-      console.log('✓ axe-core already available');
+    if (axeStatus.axeExists) {
+      if (axeStatus.globalLoaded) {
+        console.log('✓ axe-core available from global pre-loading');
+      } else {
+        console.log('✓ axe-core already available');
+      }
       return true;
     }
 
-    console.log('Initializing axe-core...');
+    // If global setup was attempted but failed, log it
+    if (axeStatus.globalSetup && axeStatus.globalFailed) {
+      console.log('Global axe-core pre-loading failed, using fallback...');
+    } else if (axeStatus.globalSetup && !axeStatus.globalLoaded) {
+      console.log('Global axe-core still loading, using fallback...');
+    } else {
+      console.log('Initializing axe-core...');
+    }
 
     // If not available, inject axe-core manually from CDN
     await page.addScriptTag({
@@ -57,7 +98,7 @@ export async function ensureAxeInitialized(page: Page): Promise<boolean> {
     await page.waitForFunction(() => {
       return typeof (window as any).axe !== 'undefined' &&
              typeof (window as any).axe.run === 'function';
-    }, { timeout: 15000 });
+    }, { timeout: adjustTimeout(15000) });
 
     console.log('✓ axe-core initialized successfully');
     return true;
@@ -80,7 +121,8 @@ export async function performAccessibilityAnalysis(
     disableRules = [],
     include = [],
     allowFailures = false,
-    timeout = 30000
+    complexity = 'standard',
+    timeout = adjustTimeout(complexity === 'complex' ? TIMEOUTS.A11Y_AUDIT_COMPLEX : TIMEOUTS.A11Y_AUDIT)
   } = options;
 
   // Ensure axe is initialized first

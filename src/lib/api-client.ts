@@ -233,6 +233,91 @@ export interface HomeData {
   }>;
 }
 
+// Onboarding API Types
+export interface OnboardingSport {
+  id: string;
+  name: string;
+  icon: string;
+  hasTeams: boolean;
+  isPopular: boolean;
+}
+
+export interface OnboardingTeam {
+  id: string;
+  name: string;
+  market: string;
+  sportId: string;
+  league: string;
+  logo?: string;
+  colors?: {
+    primary: string;
+    secondary: string;
+  };
+}
+
+export interface OnboardingStatus {
+  currentStep: number;
+  totalSteps: number;
+  isComplete: boolean;
+  selectedSports: Array<{
+    sportId: string;
+    rank: number;
+  }>;
+  selectedTeams: Array<{
+    teamId: string;
+    sportId: string;
+    affinityScore: number;
+  }>;
+  preferences: {
+    newsTypes: Array<{
+      type: string;
+      enabled: boolean;
+      priority: number;
+    }>;
+    notifications: {
+      push: boolean;
+      email: boolean;
+      gameReminders: boolean;
+      newsAlerts: boolean;
+      scoreUpdates: boolean;
+    };
+    contentFrequency: 'minimal' | 'standard' | 'comprehensive';
+  };
+}
+
+export interface UpdateOnboardingStepRequest {
+  step: number;
+  data?: {
+    sports?: Array<{
+      sportId: string;
+      rank: number;
+    }>;
+    teams?: Array<{
+      teamId: string;
+      sportId: string;
+      affinityScore: number;
+    }>;
+    preferences?: OnboardingStatus['preferences'];
+  };
+}
+
+export interface CompleteOnboardingRequest {
+  sports: Array<{
+    sportId: string;
+    name: string;
+    rank: number;
+    hasTeams: boolean;
+  }>;
+  teams: Array<{
+    teamId: string;
+    name: string;
+    sportId: string;
+    league: string;
+    affinityScore: number;
+  }>;
+  preferences: OnboardingStatus['preferences'];
+}
+
 // HTTP Client Class
 export class ApiClient {
   private baseUrl: string;
@@ -409,6 +494,35 @@ export class ApiClient {
     return this.request<HomeData>('/me/home');
   }
 
+  // Onboarding API Methods
+  async getOnboardingStatus(): Promise<OnboardingStatus> {
+    return this.request<OnboardingStatus>('/onboarding/status');
+  }
+
+  async updateOnboardingStep(data: UpdateOnboardingStepRequest): Promise<OnboardingStatus> {
+    return this.request<OnboardingStatus>('/onboarding/step', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async getOnboardingSports(): Promise<OnboardingSport[]> {
+    return this.request<OnboardingSport[]>('/onboarding/sports');
+  }
+
+  async getOnboardingTeams(sportIds: string[]): Promise<OnboardingTeam[]> {
+    return this.request<OnboardingTeam[]>('/onboarding/teams', {
+      params: { sport_ids: sportIds.join(',') },
+    });
+  }
+
+  async completeOnboarding(data: CompleteOnboardingRequest): Promise<UserProfile> {
+    return this.request<UserProfile>('/onboarding/complete', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
   // Health Check
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return this.request<{ status: string; timestamp: string }>('/health', {
@@ -488,6 +602,27 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
       queryFn: () => apiClient.getTeamDashboard(teamId),
       staleTime: 5 * 60 * 1000, // 5 minutes
       enabled: (firebaseAuth?.isAuthenticated ?? false) && !!teamId,
+    }),
+
+    // Onboarding queries
+    getOnboardingStatus: () => ({
+      queryKey: ['onboarding', 'status'],
+      queryFn: () => apiClient.getOnboardingStatus(),
+      staleTime: 1 * 60 * 1000, // 1 minute
+      enabled: firebaseAuth?.isAuthenticated ?? false,
+    }),
+
+    getOnboardingSports: () => ({
+      queryKey: ['onboarding', 'sports'],
+      queryFn: () => apiClient.getOnboardingSports(),
+      staleTime: 30 * 60 * 1000, // 30 minutes (static data)
+    }),
+
+    getOnboardingTeams: (sportIds: string[]) => ({
+      queryKey: ['onboarding', 'teams', sportIds],
+      queryFn: () => apiClient.getOnboardingTeams(sportIds),
+      staleTime: 30 * 60 * 1000, // 30 minutes (static data)
+      enabled: sportIds.length > 0,
     }),
   };
 };

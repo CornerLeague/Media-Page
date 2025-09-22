@@ -102,6 +102,11 @@ class User(Base, UUIDMixin, TimestampMixin):
         doc="Timestamp when user completed onboarding"
     )
 
+    current_onboarding_step: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        doc="Current step in onboarding process (1-5, null when completed)"
+    )
+
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default="NOW()",

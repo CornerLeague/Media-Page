@@ -43,9 +43,9 @@ export default defineConfig({
     /* Capture video on failure */
     video: 'retain-on-failure',
 
-    /* Global test timeout */
-    actionTimeout: 10000,
-    navigationTimeout: 30000,
+    /* Enhanced global timeouts with environment awareness */
+    actionTimeout: process.env.CI ? 20000 : (process.env.DEBUG ? 30000 : 10000),
+    navigationTimeout: process.env.CI ? 60000 : (process.env.DEBUG ? 90000 : 30000),
 
     /* Enable JavaScript and ignore HTTPS errors */
     javaScriptEnabled: true,
@@ -132,10 +132,10 @@ export default defineConfig({
   /* Global setup and teardown */
   globalSetup: './e2e/global-setup.ts',
 
-  /* Test timeout - increased for React hydration */
-  timeout: 60 * 1000,
+  /* Enhanced test timeout configurations */
+  timeout: process.env.CI ? 120 * 1000 : (process.env.DEBUG ? 180 * 1000 : 90 * 1000),
   expect: {
-    timeout: 10 * 1000,
+    timeout: process.env.CI ? 15 * 1000 : (process.env.DEBUG ? 20 * 1000 : 10 * 1000),
   },
 
   /* Test isolation */

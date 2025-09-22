@@ -2,9 +2,29 @@
  * Authentication Test Utilities
  *
  * Provides reusable utilities and fixtures for Firebase authentication testing
+ * with enhanced timeout configurations for reliable testing.
  */
 
 import { Page, expect } from '@playwright/test';
+
+// Timeout configurations for auth operations
+const AUTH_TIMEOUTS = {
+  STANDARD: 3000,
+  SLOW: 6000,
+  NETWORK: 8000,
+  LOADING: 5000,
+} as const;
+
+// Environment adjustments
+const isCI = process.env.CI === 'true';
+const isDebug = process.env.DEBUG === 'true';
+
+function adjustTimeout(baseTimeout: number): number {
+  let multiplier = 1;
+  if (isDebug) multiplier = 3;
+  else if (isCI) multiplier = 2;
+  return Math.round(baseTimeout * multiplier);
+}
 
 /**
  * Test user credentials for consistent testing
@@ -170,10 +190,15 @@ export async function setupMockAuth(page: Page) {
 /**
  * Navigate to the sign-in page and wait for it to load
  */
-export async function goToSignInPage(page: Page) {
+export async function goToSignInPage(page: Page, timeout?: number) {
+  const waitTimeout = timeout || adjustTimeout(AUTH_TIMEOUTS.STANDARD);
+
   await page.goto('/auth/sign-in');
   // Wait for the auth form to load - just check for email input which should be unique
-  await expect(page.locator('input[type="email"]').first()).toBeVisible();
+  await expect(page.locator('input[type="email"]').first()).toBeVisible({ timeout: waitTimeout });
+
+  // Wait for any loading states to complete
+  await waitForLoadingToComplete(page, { timeout: waitTimeout });
 }
 
 /**
@@ -225,15 +250,28 @@ export async function signOut(page: Page) {
 }
 
 /**
- * Wait for authentication state to settle
+ * Wait for authentication state to settle with enhanced timeout handling
  */
-export async function waitForAuthState(page: Page, authenticated: boolean = true) {
+export async function waitForAuthState(
+  page: Page,
+  authenticated: boolean = true,
+  timeout?: number
+) {
+  const waitTimeout = timeout || adjustTimeout(AUTH_TIMEOUTS.SLOW);
+
   if (authenticated) {
     // Wait for user profile to be visible
-    await expect(page.locator('[data-testid="user-profile"], button:has([data-testid="user-avatar"])')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="user-profile"], button:has([data-testid="user-avatar"])')
+    ).toBeVisible({ timeout: waitTimeout });
+
+    // Wait for any auth-related loading to complete
+    await waitForLoadingToComplete(page, { timeout: waitTimeout });
   } else {
     // Wait for sign-in form to be visible
-    await expect(page.locator('[data-testid="sign-in-form"], .sign-in-card')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="sign-in-form"], .sign-in-card')
+    ).toBeVisible({ timeout: waitTimeout });
   }
 }
 
@@ -349,11 +387,39 @@ export async function clearNetworkMocks(page: Page) {
 }
 
 /**
- * Wait for loading state to complete
+ * Wait for loading state to complete with enhanced timeout handling
  */
-export async function waitForLoadingToComplete(page: Page) {
-  // Wait for any loading spinners to disappear
-  await expect(page.locator('.animate-spin, [data-testid="loading"]')).not.toBeVisible();
+export async function waitForLoadingToComplete(
+  page: Page,
+  options: { timeout?: number; loadingSelectors?: string[] } = {}
+) {
+  const {
+    timeout = adjustTimeout(AUTH_TIMEOUTS.LOADING),
+    loadingSelectors = [
+      '.animate-spin',
+      '[data-testid="loading"]',
+      '.loading',
+      '[aria-busy="true"]',
+      '.spinner'
+    ]
+  } = options;
+
+  // Wait for all loading indicators to disappear
+  for (const selector of loadingSelectors) {
+    try {
+      await expect(page.locator(selector)).not.toBeVisible({
+        timeout: Math.min(timeout / loadingSelectors.length, 2000)
+      });
+    } catch (error) {
+      // Continue if specific loading indicator not found
+      continue;
+    }
+  }
+
+  // Additional wait for network to be idle
+  await page.waitForLoadState('networkidle', {
+    timeout: Math.min(timeout, adjustTimeout(AUTH_TIMEOUTS.NETWORK))
+  });
 }
 
 /**

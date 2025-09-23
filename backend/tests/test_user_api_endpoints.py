@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.main import app, api_v1
-from backend.api.schemas.auth import FirebaseUser, UserProfile
+from backend.api.schemas.auth import FirebaseUser, UserProfile, OnboardingStatus
 from backend.api.exceptions import register_exception_handlers
 from backend.models.users import User, UserSportPreference, UserTeamPreference, UserNotificationSettings
 from backend.models.sports import Sport, Team
@@ -632,6 +632,209 @@ class TestUserPreferencesAPI:
 
             # Should return validation error
             assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    # Onboarding Status Endpoint Tests
+
+    @pytest.fixture
+    def mock_onboarded_user(self):
+        """Mock user who has completed onboarding"""
+        user = Mock(spec=User)
+        user.id = "onboarded_user_123"
+        user.firebase_uid = "onboarded_user_123"
+        user.email = "onboarded@example.com"
+        user.display_name = "Onboarded User"
+        user.onboarding_completed_at = datetime.now(timezone.utc)
+        user.current_onboarding_step = None
+        user.created_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(timezone.utc)
+        user.last_active_at = datetime.now(timezone.utc)
+        # Mock the is_onboarded property to return True when onboarding_completed_at is not None
+        user.is_onboarded = True
+        return user
+
+    @pytest.fixture
+    def mock_onboarding_user_step_2(self):
+        """Mock user currently on onboarding step 2"""
+        user = Mock(spec=User)
+        user.id = "onboarding_user_123"
+        user.firebase_uid = "onboarding_user_123"
+        user.email = "onboarding@example.com"
+        user.display_name = "Onboarding User"
+        user.onboarding_completed_at = None
+        user.current_onboarding_step = 2
+        user.created_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(timezone.utc)
+        user.last_active_at = datetime.now(timezone.utc)
+        # Mock the is_onboarded property to return False when onboarding_completed_at is None
+        user.is_onboarded = False
+        return user
+
+    @pytest.fixture
+    def mock_new_user(self):
+        """Mock new user who hasn't started onboarding"""
+        user = Mock(spec=User)
+        user.id = "new_user_123"
+        user.firebase_uid = "new_user_123"
+        user.email = "new@example.com"
+        user.display_name = "New User"
+        user.onboarding_completed_at = None
+        user.current_onboarding_step = None
+        user.created_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(timezone.utc)
+        user.last_active_at = datetime.now(timezone.utc)
+        # Mock the is_onboarded property to return False when onboarding_completed_at is None
+        user.is_onboarded = False
+        return user
+
+    def test_auth_onboarding_status_without_token(self, client):
+        """Test /auth/onboarding-status endpoint without authentication token"""
+        response = client.get("/auth/onboarding-status")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        error_data = response.json()
+        assert error_data["error"]["code"] == "AUTH_REQUIRED"
+
+    def test_auth_onboarding_status_completed(self, client, sample_decoded_token, mock_onboarded_user):
+        """Test /auth/onboarding-status endpoint for completed onboarding"""
+        with patch('firebase_admin.auth.verify_id_token') as mock_verify, \
+             patch('backend.api.services.user_service.get_current_user_context') as mock_context:
+
+            mock_verify.return_value = sample_decoded_token
+
+            # Mock the user context
+            mock_user_context = Mock()
+            mock_user_context.get_or_create_db_user.return_value = mock_onboarded_user
+            mock_context.return_value = mock_user_context
+
+            response = client.get(
+                "/auth/onboarding-status",
+                headers={"Authorization": "Bearer valid_token"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["hasCompletedOnboarding"] is True
+            assert data["currentStep"] is None
+
+    def test_auth_onboarding_status_in_progress(self, client, sample_decoded_token, mock_onboarding_user_step_2):
+        """Test /auth/onboarding-status endpoint for onboarding in progress"""
+        with patch('firebase_admin.auth.verify_id_token') as mock_verify, \
+             patch('backend.api.services.user_service.get_current_user_context') as mock_context:
+
+            mock_verify.return_value = sample_decoded_token
+
+            # Mock the user context
+            mock_user_context = Mock()
+            mock_user_context.get_or_create_db_user.return_value = mock_onboarding_user_step_2
+            mock_context.return_value = mock_user_context
+
+            response = client.get(
+                "/auth/onboarding-status",
+                headers={"Authorization": "Bearer valid_token"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["hasCompletedOnboarding"] is False
+            assert data["currentStep"] == 2
+
+    def test_auth_onboarding_status_not_started(self, client, sample_decoded_token, mock_new_user):
+        """Test /auth/onboarding-status endpoint for user who hasn't started onboarding"""
+        with patch('firebase_admin.auth.verify_id_token') as mock_verify, \
+             patch('backend.api.services.user_service.get_current_user_context') as mock_context:
+
+            mock_verify.return_value = sample_decoded_token
+
+            # Mock the user context
+            mock_user_context = Mock()
+            mock_user_context.get_or_create_db_user.return_value = mock_new_user
+            mock_context.return_value = mock_user_context
+
+            response = client.get(
+                "/auth/onboarding-status",
+                headers={"Authorization": "Bearer valid_token"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["hasCompletedOnboarding"] is False
+            assert data["currentStep"] is None
+
+    def test_api_v1_auth_onboarding_status_completed(self, client, sample_decoded_token, mock_onboarded_user):
+        """Test /api/v1/auth/onboarding-status endpoint for completed onboarding"""
+        with patch('firebase_admin.auth.verify_id_token') as mock_verify, \
+             patch('backend.api.services.user_service.get_current_user_context') as mock_context:
+
+            mock_verify.return_value = sample_decoded_token
+
+            # Mock the user context
+            mock_user_context = Mock()
+            mock_user_context.get_or_create_db_user.return_value = mock_onboarded_user
+            mock_context.return_value = mock_user_context
+
+            response = client.get(
+                "/api/v1/auth/onboarding-status",
+                headers={"Authorization": "Bearer valid_token"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["hasCompletedOnboarding"] is True
+            assert data["currentStep"] is None
+
+    def test_api_v1_auth_onboarding_status_in_progress(self, client, sample_decoded_token, mock_onboarding_user_step_2):
+        """Test /api/v1/auth/onboarding-status endpoint for onboarding in progress"""
+        with patch('firebase_admin.auth.verify_id_token') as mock_verify, \
+             patch('backend.api.services.user_service.get_current_user_context') as mock_context:
+
+            mock_verify.return_value = sample_decoded_token
+
+            # Mock the user context
+            mock_user_context = Mock()
+            mock_user_context.get_or_create_db_user.return_value = mock_onboarding_user_step_2
+            mock_context.return_value = mock_user_context
+
+            response = client.get(
+                "/api/v1/auth/onboarding-status",
+                headers={"Authorization": "Bearer valid_token"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["hasCompletedOnboarding"] is False
+            assert data["currentStep"] == 2
+
+    def test_onboarding_status_response_schema_validation(self, client, sample_decoded_token, mock_onboarding_user_step_2):
+        """Test onboarding status response matches expected schema"""
+        with patch('firebase_admin.auth.verify_id_token') as mock_verify, \
+             patch('backend.api.services.user_service.get_current_user_context') as mock_context:
+
+            mock_verify.return_value = sample_decoded_token
+
+            # Mock the user context
+            mock_user_context = Mock()
+            mock_user_context.get_or_create_db_user.return_value = mock_onboarding_user_step_2
+            mock_context.return_value = mock_user_context
+
+            response = client.get(
+                "/auth/onboarding-status",
+                headers={"Authorization": "Bearer valid_token"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+
+            # Validate schema structure
+            assert isinstance(data, dict)
+            assert "hasCompletedOnboarding" in data
+            assert "currentStep" in data
+            assert isinstance(data["hasCompletedOnboarding"], bool)
+            assert isinstance(data["currentStep"], (int, type(None)))
+
+            # Validate response can be parsed by OnboardingStatus schema
+            onboarding_status = OnboardingStatus(**data)
+            assert onboarding_status.hasCompletedOnboarding is False
+            assert onboarding_status.currentStep == 2
 
 
 if __name__ == "__main__":

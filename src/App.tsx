@@ -7,11 +7,18 @@ import { AISummarySection } from "@/components/AISummarySection";
 import { SportsFeedSection } from "@/components/SportsFeedSection";
 import { BestSeatsSection } from "@/components/BestSeatsSection";
 import { FanExperiencesSection } from "@/components/FanExperiencesSection";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ProtectedRoute, FullyProtectedRoute, OnboardingRoute } from "@/components/auth/ProtectedRoute";
 import { FirebaseAuthProvider, useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { FirebaseSignIn } from "@/components/auth/FirebaseSignIn";
 import { OnboardingRouter } from "@/pages/onboarding";
-import { apiClient, createApiQueryClient, type OnboardingStatus } from "@/lib/api-client";
+import { PreferencesPage } from "@/pages/profile/PreferencesPage";
+import { useAuthOnboarding } from "@/hooks/useAuthOnboarding";
+import { useAuth } from "@/hooks/useAuth";
+import { usePersonalizedFeed } from "@/hooks/usePersonalizedFeed";
+import { TeamSection } from "@/components/TeamSection";
+import { ContentFeed } from "@/components/ContentFeed";
+import { AuthLoadingScreen, AuthErrorScreen } from "@/components/auth/AuthLoadingStates";
+import { apiClient, createApiQueryClient, type OnboardingStatusResponse } from "@/lib/api-client";
 import { useEffect, useState } from "react";
 
 // Create React Query client with optimized settings
@@ -35,10 +42,20 @@ const queryClient = new QueryClient({
   },
 });
 
-// Main dashboard component that loads the team data
+// Enhanced dashboard component with personalized content integration
 function DashboardPage() {
-  const { isAuthenticated, getIdToken, user } = useFirebaseAuth();
-  const navigate = useNavigate();
+  const { flowState, isLoading: authLoading, onboardingError } = useAuthOnboarding();
+
+  // Use the new useAuth hook to get user preferences
+  const {
+    user,
+    isLoading: userLoading,
+    isAuthenticated,
+    isOnboarded,
+    userPreferences,
+    getIdToken,
+    shouldShowTeams,
+  } = useAuth();
 
   // Set up API client with Firebase authentication
   useEffect(() => {
@@ -51,105 +68,105 @@ function DashboardPage() {
     }
   }, [isAuthenticated, getIdToken, user?.uid]);
 
-  // Get query configurations with Firebase auth
-  const queryConfigs = createApiQueryClient(
-    isAuthenticated ? { getIdToken, isAuthenticated: true, userId: user?.uid } : undefined
+  // Get personalized feed data based on user preferences
+  const personalizedData = usePersonalizedFeed(
+    userPreferences,
+    isAuthenticated ? { getIdToken, isAuthenticated: true, userId: user?.uid } : undefined,
+    {
+      enabled: isAuthenticated && isOnboarded && flowState === 'authenticated',
+      refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    }
   );
 
-  // Check onboarding status first
-  const {
-    data: onboardingStatus,
-    isLoading: onboardingLoading,
-    error: onboardingError,
-  } = useQuery(queryConfigs.getOnboardingStatus());
+  // Get featured team dashboard for AI Summary section
+  const featuredTeam = personalizedData.featuredTeam;
 
-  // Redirect to onboarding if not complete (with fallback logic)
-  useEffect(() => {
-    if (onboardingError) {
-      // API failed, check localStorage for fallback
-      import('@/lib/onboarding-storage').then(({ getLocalOnboardingStatus, isFirstVisit }) => {
-        const localStatus = getLocalOnboardingStatus();
+  const isLoading = authLoading || userLoading || personalizedData.isLoading;
+  const error = onboardingError || personalizedData.error;
 
-        if (isFirstVisit() || (localStatus && !localStatus.isComplete)) {
-          const targetStep = localStatus?.currentStep || 1;
-          navigate(`/onboarding/step/${targetStep}`);
-        }
-        // If no local data and not first visit, stay on dashboard
-      });
-    } else if (onboardingStatus && !onboardingStatus.isComplete) {
-      navigate(`/onboarding/step/${onboardingStatus.currentStep}`);
-    }
-  }, [onboardingStatus, onboardingError, navigate]);
+  // Show auth loading screen for authentication states
+  if (authLoading || flowState === 'initializing' || flowState === 'checking') {
+    return <AuthLoadingScreen stage={flowState} />;
+  }
 
-  // Fetch home data to get the user's most liked team
-  const {
-    data: homeData,
-    isLoading: homeLoading,
-    error: homeError,
-  } = useQuery({
-    ...queryConfigs.getHomeData(),
-    enabled: onboardingStatus?.isComplete === true,
-  });
-
-  // Fetch team dashboard data for the user's most liked team
-  const {
-    data: teamDashboard,
-    isLoading: dashboardLoading,
-    error: dashboardError,
-  } = useQuery({
-    ...queryConfigs.getTeamDashboard(homeData?.most_liked_team_id || ''),
-    enabled: !!homeData?.most_liked_team_id && onboardingStatus?.isComplete === true,
-  });
-
-  const isLoading = onboardingLoading || homeLoading || dashboardLoading;
-  const error = onboardingError || homeError || dashboardError;
-
-  // Show loading while checking onboarding status
-  if (onboardingLoading) {
+  // Show error screen for API errors with retry functionality
+  if (error && flowState === 'authenticated') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground font-body">Loading your profile...</p>
-        </div>
-      </div>
+      <AuthErrorScreen
+        error={error instanceof Error ? error.message : String(error)}
+        type="api"
+        onRetry={() => window.location.reload()}
+      />
     );
   }
 
-  // Don't render dashboard if onboarding is not complete
-  if (!onboardingStatus?.isComplete) {
-    return null; // Redirect happens in useEffect
-  }
+  // Handle team selection for detailed view
+  const handleTeamClick = (teamId: string) => {
+    // Navigate to team detail or update featured team
+    console.log('Selected team:', teamId);
+  };
 
+  const handleNewsClick = (article: any) => {
+    if (article.url) {
+      window.open(article.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleSportsItemClick = (item: any) => {
+    if (item.externalUrl) {
+      window.open(item.externalUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  // Dashboard content - only renders when fully authenticated and onboarded
   return (
     <div className="min-h-screen bg-background">
       <TopNavBar />
 
       <main className="relative">
-        {/* AI Summary Section - Hero area */}
+        {/* AI Summary Section - Hero area with featured team */}
         <AISummarySection
-          teamDashboard={teamDashboard}
+          teamDashboard={featuredTeam}
           isLoading={isLoading}
           error={error as Error | null}
         />
 
-        {/* Sports Feed Section */}
+        {/* Team Section - Show selected teams */}
+        {shouldShowTeams && (
+          <TeamSection
+            teams={userPreferences.teams}
+            teamDashboards={personalizedData.teamDashboards}
+            isLoading={isLoading}
+            error={error as Error | null}
+            onTeamClick={handleTeamClick}
+          />
+        )}
+
+        {/* Personalized Content Feed */}
+        <ContentFeed
+          personalizedData={personalizedData}
+          userPreferences={userPreferences}
+          onNewsClick={handleNewsClick}
+          onSportsItemClick={handleSportsItemClick}
+        />
+
+        {/* Sports Feed Section - Keep for backward compatibility if needed */}
         <SportsFeedSection
-          teamDashboard={teamDashboard}
+          teamDashboard={featuredTeam}
           isLoading={isLoading}
           error={error as Error | null}
         />
 
-        {/* Best Seats Section */}
+        {/* Best Seats Section - Use featured team */}
         <BestSeatsSection
-          teamDashboard={teamDashboard}
+          teamDashboard={featuredTeam}
           isLoading={isLoading}
           error={error as Error | null}
         />
 
-        {/* Fan Experiences Section */}
+        {/* Fan Experiences Section - Use featured team */}
         <FanExperiencesSection
-          teamDashboard={teamDashboard}
+          teamDashboard={featuredTeam}
           isLoading={isLoading}
           error={error as Error | null}
         />
@@ -170,91 +187,27 @@ function AuthLoading() {
   );
 }
 
-// Sign in page component with intelligent routing
+// Enhanced sign in page with integrated auth flow
 function SignInPage() {
-  const navigate = useNavigate();
-  const { isAuthenticated, getIdToken, user } = useFirebaseAuth();
-  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(false);
+  const { flowState, isAuthenticated } = useAuthOnboarding();
 
-  // Set up API client with Firebase authentication when user signs in
-  useEffect(() => {
-    if (isAuthenticated && getIdToken) {
-      apiClient.setFirebaseAuth({
-        getIdToken,
-        isAuthenticated: true,
-        userId: user?.uid,
-      });
-    }
-  }, [isAuthenticated, getIdToken, user?.uid]);
-
-  // Get query configurations with Firebase auth
-  const queryConfigs = createApiQueryClient(
-    isAuthenticated ? { getIdToken, isAuthenticated: true, userId: user?.uid } : undefined
-  );
-
+  // Handle sign-in success - the useAuthOnboarding hook will handle navigation
   const handleSignInSuccess = async () => {
-    setIsCheckingOnboarding(true);
-
-    try {
-      // Wait a moment for Firebase auth to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Check onboarding status after successful sign-in with timeout
-      const onboardingStatusPromise = apiClient.getOnboardingStatus();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('API timeout')), 5000)
-      );
-
-      const onboardingStatus = await Promise.race([
-        onboardingStatusPromise,
-        timeoutPromise
-      ]) as OnboardingStatus;
-
-      if (onboardingStatus.isComplete) {
-        // User has completed onboarding, go to main dashboard
-        navigate('/');
-      } else {
-        // New user or incomplete onboarding, go to appropriate step
-        navigate(`/onboarding/step/${onboardingStatus.currentStep}`);
-      }
-    } catch (error) {
-      console.error('Failed to check onboarding status:', error);
-
-      // Implement robust fallback logic when API fails
-      const {
-        determineOnboardingRoute,
-        getLocalOnboardingStatus,
-        isFirstVisit,
-        markUserVisited
-      } = await import('@/lib/onboarding-storage');
-
-      // Check if this is a new user by looking at Firebase user metadata
-      const isNewUser = user?.metadata?.creationTime === user?.metadata?.lastSignInTime;
-
-      // Use fallback logic to determine where to navigate
-      const fallbackRoute = determineOnboardingRoute(
-        null, // API status is null because it failed
-        true, // API error occurred
-        isNewUser || isFirstVisit()
-      );
-
-      console.log('Using fallback navigation route:', fallbackRoute);
-      navigate(fallbackRoute);
-    } finally {
-      setIsCheckingOnboarding(false);
-    }
+    // The hook will automatically handle navigation based on onboarding status
+    // No manual navigation needed here
   };
 
-  // Show loading state while checking onboarding status
-  if (isCheckingOnboarding) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground font-body">Setting up your experience...</p>
-        </div>
-      </div>
-    );
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && flowState === 'authenticated') {
+      // User is already fully authenticated, redirect to dashboard
+      return;
+    }
+  }, [isAuthenticated, flowState]);
+
+  // Show loading screen during auth flow transitions
+  if (flowState === 'checking' || flowState === 'onboarding') {
+    return <AuthLoadingScreen stage={flowState} />;
   }
 
   return (
@@ -276,44 +229,89 @@ function SignInPage() {
 
           <FirebaseSignIn onSuccess={handleSignInSuccess} />
         </div>
+
+        {/* Error state for sign-in page */}
+        {flowState === 'error' && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-700">
+              Having trouble signing in? Please try again or contact support.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// App router component
+// Enhanced app router with integrated auth flow
 function AppRouter() {
   return (
     <Router>
       <Routes>
-        {/* Main dashboard route */}
+        {/* Main dashboard route - requires full authentication and onboarding */}
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <FullyProtectedRoute>
               <DashboardPage />
-            </ProtectedRoute>
+            </FullyProtectedRoute>
           }
         />
 
-        {/* Onboarding routes */}
+        {/* Onboarding routes - requires authentication but not completed onboarding */}
         <Route
           path="/onboarding/*"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <OnboardingRouter />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
 
-        {/* Authentication route */}
+        {/* Profile preferences route - requires full authentication and onboarding */}
+        <Route
+          path="/profile/preferences"
+          element={
+            <FullyProtectedRoute>
+              <PreferencesPage />
+            </FullyProtectedRoute>
+          }
+        />
+
+        {/* Authentication route - public route */}
         <Route path="/auth/sign-in" element={<SignInPage />} />
 
-        {/* Catch all route - redirect to home */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Catch all route - redirect based on auth state */}
+        <Route path="*" element={<AuthAwareRedirect />} />
       </Routes>
     </Router>
   );
+}
+
+// Smart redirect component that uses auth state
+function AuthAwareRedirect() {
+  const { isAuthenticated, isOnboarded, flowState } = useAuthOnboarding();
+
+  // Show loading while determining auth state
+  if (flowState === 'initializing' || flowState === 'checking') {
+    return <AuthLoadingScreen stage={flowState} />;
+  }
+
+  // Redirect based on auth state
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/sign-in" replace />;
+  }
+
+  if (isAuthenticated && !isOnboarded) {
+    return <Navigate to="/onboarding/step/1" replace />;
+  }
+
+  if (isAuthenticated && isOnboarded) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Fallback
+  return <Navigate to="/auth/sign-in" replace />;
 }
 
 // Main App component

@@ -35,7 +35,7 @@ from backend.api.routers.team_selection import router as team_selection_router
 from backend.api.routers.sports import router as sports_router
 from backend.api.routers.onboarding import router as onboarding_router
 from backend.database import get_async_session
-from backend.api.schemas.auth import FirebaseUser, UserProfile
+from backend.api.schemas.auth import FirebaseUser, UserProfile, OnboardingStatus
 from backend.api.exceptions import register_exception_handlers
 from backend.config.firebase import validate_firebase_environment
 from backend.models.users import User
@@ -144,6 +144,24 @@ async def create_or_update_user_api_v1(
     """
     db_user = await user_context.get_or_create_db_user()
     return UserProfile.from_orm(db_user)
+
+
+@api_v1.get("/auth/onboarding-status", response_model=OnboardingStatus)
+async def get_onboarding_status_api_v1(
+    user_context: AuthenticatedUserContext = Depends(get_current_user_context)
+) -> OnboardingStatus:
+    """
+    Get user onboarding status (API v1)
+
+    Requires: Valid Firebase JWT token
+    Returns: Onboarding completion status and current step
+    """
+    db_user = await user_context.get_or_create_db_user()
+
+    return OnboardingStatus(
+        hasCompletedOnboarding=db_user.is_onboarded,
+        currentStep=db_user.current_onboarding_step
+    )
 
 
 @api_v1.get("/me/home")
@@ -441,6 +459,24 @@ async def sync_user_with_database(
     """
     db_user = await user_context.get_or_create_db_user()
     return UserProfile.from_orm(db_user)
+
+
+@app.get("/auth/onboarding-status", response_model=OnboardingStatus)
+async def get_onboarding_status(
+    user_context: AuthenticatedUserContext = Depends(get_current_user_context)
+) -> OnboardingStatus:
+    """
+    Get user onboarding status
+
+    Requires: Valid Firebase JWT token
+    Returns: Onboarding completion status and current step
+    """
+    db_user = await user_context.get_or_create_db_user()
+
+    return OnboardingStatus(
+        hasCompletedOnboarding=db_user.is_onboarded,
+        currentStep=db_user.current_onboarding_step
+    )
 
 
 # User profile endpoints

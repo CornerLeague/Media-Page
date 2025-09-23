@@ -15,7 +15,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.tsx'],
     css: true,
-    reporters: ['verbose', 'json', 'html'],
+    reporters: ['verbose', 'json'],
     outputFile: {
       json: './test-results/vitest-report.json',
       html: './test-results/vitest-report.html',

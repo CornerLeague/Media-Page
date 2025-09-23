@@ -10,6 +10,22 @@ export type {
   UpdateDocument,
 } from './lib/types/firebase-types';
 
+// Re-export Auth Onboarding types
+export type {
+  EnhancedAuthState,
+  UserOnboardingStatus,
+  OnboardingStatusResponse,
+  UseAuthOnboardingResult,
+  EnhancedProtectedRouteProps,
+  AuthFlowState,
+  AuthOnboardingError,
+  AuthOnboardingErrorType,
+  RouteGuardResult,
+  PersistedSessionData,
+  CurrentLoadingState,
+  NavigationDecision,
+} from './lib/types/auth-onboarding';
+
 // Sports and Teams Types (previously from onboarding-types)
 export interface League {
   id: string;

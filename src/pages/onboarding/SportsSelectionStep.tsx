@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -31,6 +31,7 @@ import { createApiQueryClient, type OnboardingSport, apiClient } from "@/lib/api
 import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { AVAILABLE_SPORTS } from "@/data/sports";
 import { updateLocalOnboardingStep, getLocalOnboardingStatus } from "@/lib/onboarding-storage";
+import { useOnboardingPrefetch } from "@/hooks/useOnboardingPrefetch";
 import { cn } from "@/lib/utils";
 
 interface SportItem extends OnboardingSport {
@@ -242,7 +243,7 @@ export function SportsSelectionStep() {
     })
   );
 
-  const handleToggleSport = (sportId: string) => {
+  const handleToggleSport = useCallback((sportId: string) => {
     setSports(prevSports => {
       const targetSport = prevSports.find(s => s.id === sportId);
       if (!targetSport) {
@@ -278,7 +279,7 @@ export function SportsSelectionStep() {
         nextSelectedOrder = [...nextSelectedOrder, sportId];
       }
 
-      return prevSports.map(sport => {
+      const updatedSports = prevSports.map(sport => {
         const nextIndex = nextSelectedOrder.indexOf(sport.id);
         return {
           ...sport,
@@ -286,8 +287,19 @@ export function SportsSelectionStep() {
           rank: nextIndex !== -1 ? nextIndex + 1 : 0,
         };
       });
+
+      // Prefetch teams data when sports are selected
+      const selectedSportIds = updatedSports
+        .filter(sport => sport.isSelected)
+        .map(sport => sport.id);
+
+      if (selectedSportIds.length > 0) {
+        prefetchTeamsForSports(selectedSportIds);
+      }
+
+      return updatedSports;
     });
-  };
+  }, [prefetchTeamsForSports]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

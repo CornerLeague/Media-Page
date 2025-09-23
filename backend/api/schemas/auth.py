@@ -37,6 +37,20 @@ class FirebaseUser(BaseModel):
         }
 
 
+class OnboardingStatus(BaseModel):
+    """Onboarding status response schema"""
+    hasCompletedOnboarding: bool = Field(..., description="Whether user has completed onboarding")
+    currentStep: Optional[int] = Field(None, description="Current onboarding step (1-5), null if completed")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "hasCompletedOnboarding": False,
+                "currentStep": 2
+            }
+        }
+
+
 class UserCreate(BaseModel):
     """Schema for creating a new user"""
     firebase_uid: str = Field(..., description="Firebase authentication user ID")

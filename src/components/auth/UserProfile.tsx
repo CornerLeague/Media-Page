@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFirebaseAuth, useProfileManagement, useEmailVerification, usePasswordManagement } from '@/contexts/FirebaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,12 +18,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { Loader2, User, Mail, Shield, Settings, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, User, Mail, Shield, Settings, LogOut, CheckCircle, AlertCircle, Edit3 } from 'lucide-react';
 
 export function UserProfile() {
   const { user, signOut } = useFirebaseAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
+
+  const handleEditPreferences = () => {
+    navigate('/profile/preferences');
+  };
 
   return (
     <DropdownMenu>
@@ -45,6 +51,10 @@ export function UserProfile() {
           <p className="text-xs text-muted-foreground">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleEditPreferences}>
+          <Edit3 className="mr-2 h-4 w-4" />
+          Edit Preferences
+        </DropdownMenuItem>
         <UserProfileDialog user={user}>
           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
             <User className="mr-2 h-4 w-4" />

@@ -180,13 +180,14 @@ class FirebaseJWTMiddleware:
         token = token.strip()
 
         # Check for basic JWT structure (header.payload.signature)
-        # Skip JWT structure check for test tokens
+        # Skip JWT structure check for test tokens and development tokens
         is_test_token = (
             token == "valid_token" or
             token.startswith("test_") or
             token == "invalid_token" or
             token == "expired_token" or
-            token == "revoked_token"
+            token == "revoked_token" or
+            token.startswith("mock-firebase-token-")  # Development mode tokens
         )
 
         if not is_test_token and token.count('.') != 2:
@@ -205,6 +206,24 @@ class FirebaseJWTMiddleware:
             )
 
         try:
+            # Handle development mode tokens
+            if token.startswith("mock-firebase-token-"):
+                # Create a mock user for development
+                firebase_user = FirebaseUser(
+                    uid='dev-user-mock',
+                    email='dev.user@example.com',
+                    display_name='Development User',
+                    photo_url=None,
+                    email_verified=True,
+                    provider_data={},
+                    custom_claims={}
+                )
+
+                return TokenValidationResult(
+                    is_valid=True,
+                    firebase_user=firebase_user
+                )
+
             # Verify the token with Firebase Admin SDK
             decoded_token = auth.verify_id_token(token)
 

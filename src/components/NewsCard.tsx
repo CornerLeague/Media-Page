@@ -6,9 +6,11 @@ import { formatDistanceToNow } from 'date-fns';
 interface NewsCardProps {
   article: NewsArticle;
   onClick?: () => void;
+  showTeamBadge?: boolean;
+  teamName?: string;
 }
 
-export const NewsCard = ({ article, onClick }: NewsCardProps) => {
+export const NewsCard = ({ article, onClick, showTeamBadge = false, teamName }: NewsCardProps) => {
   const getCategoryColor = (category: NewsArticle['category']) => {
     switch (category) {
       case 'injuries':
@@ -38,14 +40,21 @@ export const NewsCard = ({ article, onClick }: NewsCardProps) => {
       onClick={onClick}
     >
       <div className="p-4">
-        {/* Header with category and time */}
+        {/* Header with category, team, and time */}
         <div className="flex items-center justify-between mb-3">
-          <Badge
-            variant="outline"
-            className={`text-xs ${getCategoryColor(article.category)}`}
-          >
-            {article.category.charAt(0).toUpperCase() + article.category.slice(1)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={`text-xs ${getCategoryColor(article.category)}`}
+            >
+              {article.category.charAt(0).toUpperCase() + article.category.slice(1)}
+            </Badge>
+            {showTeamBadge && teamName && (
+              <Badge variant="secondary" className="text-xs">
+                {teamName}
+              </Badge>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">
             {formatTimeAgo(article.published_at)}
           </span>

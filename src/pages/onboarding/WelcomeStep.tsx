@@ -3,12 +3,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Trophy, Users, TrendingUp, Star } from "lucide-react";
 import { OnboardingLayout } from "./OnboardingLayout";
+import { createOnboardingStep } from "@/components/error-boundaries/withOnboardingErrorBoundary";
+import { useSessionRecovery } from "@/hooks/useSessionRecovery";
+import { reportOnboardingError } from "@/lib/error-reporting";
+import { SyncStatusIndicator } from "@/components/fallback/OnboardingFallbackUI";
+import { useOnboardingAssetPrefetch } from "@/hooks/useOnboardingPrefetch";
 
-export function WelcomeStep() {
+function WelcomeStepComponent() {
   const navigate = useNavigate();
+  const {
+    syncStatus,
+    hasUnsyncedData,
+    lastSyncTime,
+    syncWithAPI,
+    saveStepProgress,
+  } = useSessionRecovery();
 
-  const handleGetStarted = () => {
-    navigate("/onboarding/step/2");
+  // Prefetch assets for better performance
+  useOnboardingAssetPrefetch();
+
+  const handleGetStarted = async () => {
+    try {
+      // Save step 1 completion
+      saveStepProgress(1, { completed: true });
+
+      navigate("/onboarding/step/2");
+    } catch (error) {
+      reportOnboardingError(
+        1,
+        'Failed to complete welcome step',
+        error instanceof Error ? error : new Error(String(error)),
+        { action: 'get_started' }
+      );
+
+      // Continue anyway - this is not a blocking error
+      navigate("/onboarding/step/2");
+    }
   };
 
   const features = [
@@ -43,6 +73,15 @@ export function WelcomeStep() {
       showProgress={true}
       completedSteps={0}
     >
+      {/* Sync Status Indicator */}
+      <div className="flex justify-end mb-4">
+        <SyncStatusIndicator
+          status={syncStatus}
+          lastSyncTime={lastSyncTime}
+          hasUnsyncedData={hasUnsyncedData}
+          onSync={syncWithAPI}
+        />
+      </div>
       <div className="space-y-8">
         {/* Hero section with stadium icon */}
         <div className="text-center space-y-6">
@@ -113,5 +152,15 @@ export function WelcomeStep() {
     </OnboardingLayout>
   );
 }
+
+// Wrap with error boundary
+export const WelcomeStep = createOnboardingStep(
+  WelcomeStepComponent,
+  1,
+  'Welcome',
+  {
+    canGoBack: false, // First step, can't go back
+  }
+);
 
 export default WelcomeStep;

@@ -285,6 +285,12 @@ export interface OnboardingStatus {
   };
 }
 
+// Backend API compatible onboarding status
+export interface OnboardingStatusResponse {
+  hasCompletedOnboarding: boolean;
+  currentStep?: number | null;
+}
+
 export interface UpdateOnboardingStepRequest {
   step: number;
   data?: {
@@ -495,8 +501,8 @@ export class ApiClient {
   }
 
   // Onboarding API Methods
-  async getOnboardingStatus(): Promise<OnboardingStatus> {
-    return this.request<OnboardingStatus>('/onboarding/status');
+  async getOnboardingStatus(): Promise<OnboardingStatusResponse> {
+    return this.request<OnboardingStatusResponse>('/auth/onboarding-status');
   }
 
   async updateOnboardingStep(data: UpdateOnboardingStepRequest): Promise<OnboardingStatus> {
@@ -520,6 +526,12 @@ export class ApiClient {
     return this.request<UserProfile>('/onboarding/complete', {
       method: 'POST',
       body: data,
+    });
+  }
+
+  async resetOnboarding(): Promise<void> {
+    return this.request<void>('/onboarding/reset', {
+      method: 'POST',
     });
   }
 
@@ -576,7 +588,12 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
     // User queries
     getCurrentUser: () => ({
       queryKey: ['user', 'current'],
-      queryFn: () => apiClient.getCurrentUser(),
+      queryFn: () => {
+        if (!firebaseAuth?.isAuthenticated) {
+          return Promise.reject(new Error('Authentication required'));
+        }
+        return apiClient.getCurrentUser();
+      },
       staleTime: 5 * 60 * 1000, // 5 minutes
       enabled: firebaseAuth?.isAuthenticated ?? false,
     }),
@@ -584,7 +601,12 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
     // Home dashboard queries
     getHomeData: () => ({
       queryKey: ['home', 'data'],
-      queryFn: () => apiClient.getHomeData(),
+      queryFn: () => {
+        if (!firebaseAuth?.isAuthenticated) {
+          return Promise.reject(new Error('Authentication required'));
+        }
+        return apiClient.getHomeData();
+      },
       staleTime: 5 * 60 * 1000, // 5 minutes
       enabled: firebaseAuth?.isAuthenticated ?? false,
     }),
@@ -599,15 +621,28 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
     // Team dashboard queries
     getTeamDashboard: (teamId: string) => ({
       queryKey: ['team', 'dashboard', teamId],
-      queryFn: () => apiClient.getTeamDashboard(teamId),
+      queryFn: () => {
+        if (!firebaseAuth?.isAuthenticated) {
+          return Promise.reject(new Error('Authentication required'));
+        }
+        if (!teamId) {
+          return Promise.reject(new Error('Team ID required'));
+        }
+        return apiClient.getTeamDashboard(teamId);
+      },
       staleTime: 5 * 60 * 1000, // 5 minutes
       enabled: (firebaseAuth?.isAuthenticated ?? false) && !!teamId,
     }),
 
     // Onboarding queries
     getOnboardingStatus: () => ({
-      queryKey: ['onboarding', 'status'],
-      queryFn: () => apiClient.getOnboardingStatus(),
+      queryKey: ['auth', 'onboarding-status'],
+      queryFn: () => {
+        if (!firebaseAuth?.isAuthenticated) {
+          return Promise.reject(new Error('Authentication required'));
+        }
+        return apiClient.getOnboardingStatus();
+      },
       staleTime: 1 * 60 * 1000, // 1 minute
       enabled: firebaseAuth?.isAuthenticated ?? false,
     }),

@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/use-toast";
-import { AlertCircle, Star } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { OnboardingLayout } from "./OnboardingLayout";
 import { createApiQueryClient, type OnboardingTeam, apiClient } from "@/lib/api-client";
 import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { updateLocalOnboardingStep, getLocalOnboardingStatus } from "@/lib/onboarding-storage";
+import { VirtualizedTeamList } from "@/components/VirtualizedTeamList";
+import { useOnboardingPrefetch } from "@/hooks/useOnboardingPrefetch";
 import { cn } from "@/lib/utils";
 
 interface TeamWithSelection extends OnboardingTeam {
@@ -25,6 +25,9 @@ export function TeamSelectionStep() {
   const [teams, setTeams] = useState<TeamWithSelection[]>([]);
   const [selectedCount, setSelectedCount] = useState(0);
   const [isApiAvailable, setIsApiAvailable] = useState(true);
+
+  // Initialize prefetching for next steps
+  const { prefetchPreferences } = useOnboardingPrefetch();
 
   // Get previously selected sports from localStorage
   const localStatus = getLocalOnboardingStatus();
@@ -128,17 +131,25 @@ export function TeamSelectionStep() {
     setSelectedCount(teams.filter(team => team.isSelected).length);
   }, [teams]);
 
-  const handleToggleTeam = (teamId: string) => {
-    setTeams(prev =>
-      prev.map(team =>
+  const handleToggleTeam = useCallback((teamId: string) => {
+    setTeams(prev => {
+      const updatedTeams = prev.map(team =>
         team.id === teamId
           ? { ...team, isSelected: !team.isSelected }
           : team
-      )
-    );
-  };
+      );
 
-  const handleAffinityChange = (teamId: string, affinity: number) => {
+      // Prefetch preferences when user selects first team
+      const newSelectedCount = updatedTeams.filter(t => t.isSelected).length;
+      if (newSelectedCount === 1 && prev.filter(t => t.isSelected).length === 0) {
+        prefetchPreferences();
+      }
+
+      return updatedTeams;
+    });
+  }, [prefetchPreferences]);
+
+  const handleAffinityChange = useCallback((teamId: string, affinity: number) => {
     setTeams(prev =>
       prev.map(team =>
         team.id === teamId
@@ -146,7 +157,7 @@ export function TeamSelectionStep() {
           : team
       )
     );
-  };
+  }, []);
 
   const handleContinue = async () => {
     const selectedTeams = teams.filter(team => team.isSelected);
@@ -269,18 +280,29 @@ export function TeamSelectionStep() {
             return (
               <div key={sport.sportId} className="space-y-3">
                 <h3 className="font-display font-bold text-lg capitalize">
-                  {sport.sportId.toUpperCase()} Teams
+                  {sport.sportId.toUpperCase()} Teams ({sportTeams.length})
                 </h3>
-                <div className="grid gap-3">
-                  {sportTeams.map(team => (
-                    <Card
-                      key={team.id}
-                      className={cn(
-                        "hover:shadow-md transition-all duration-200",
-                        team.isSelected && "ring-2 ring-primary bg-primary/5"
-                      )}
-                    >
-                      <CardContent className="p-4">
+
+                {/* Use virtualized list for large team lists */}
+                {sportTeams.length > 10 ? (
+                  <VirtualizedTeamList
+                    teams={sportTeams}
+                    onToggleTeam={handleToggleTeam}
+                    onAffinityChange={handleAffinityChange}
+                    containerHeight={400}
+                    itemHeight={120}
+                    className="border rounded-lg"
+                  />
+                ) : (
+                  <div className="grid gap-3">
+                    {sportTeams.map(team => (
+                      <div
+                        key={team.id}
+                        className={cn(
+                          "p-4 border rounded-lg hover:shadow-md transition-all duration-200",
+                          team.isSelected && "ring-2 ring-primary bg-primary/5"
+                        )}
+                      >
                         <div className="flex items-center gap-4">
                           <div className="text-2xl">{team.logo || '🏆'}</div>
                           <div className="flex-1">
@@ -300,27 +322,33 @@ export function TeamSelectionStep() {
                                     key={rating}
                                     onClick={() => handleAffinityChange(team.id, rating)}
                                     className={cn(
-                                      "w-4 h-4 transition-colors",
+                                      "w-4 h-4 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm",
                                       rating <= team.affinityScore
                                         ? "text-yellow-400"
                                         : "text-gray-300"
                                     )}
+                                    aria-label={`Rate ${team.name} ${rating} stars`}
                                   >
-                                    <Star className="w-full h-full fill-current" />
+                                    <svg className="w-full h-full fill-current" viewBox="0 0 24 24">
+                                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                    </svg>
                                   </button>
                                 ))}
                               </div>
                             )}
-                            <Checkbox
+                            <input
+                              type="checkbox"
                               checked={team.isSelected}
-                              onCheckedChange={() => handleToggleTeam(team.id)}
+                              onChange={() => handleToggleTeam(team.id)}
+                              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                              aria-label={`Select ${team.name}`}
                             />
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sports Order Persistence Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { margin: 5px; padding: 10px 15px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Sports Order Persistence Test</h1>
+
+    <div class="test-section info">
+        <h3>Test Instructions</h3>
+        <ol>
+            <li>Navigate to <a href="http://localhost:8082/onboarding/step/2" target="_blank">Sports Selection Step</a></li>
+            <li>Select and drag sports to reorder them</li>
+            <li>Verify that drag changes persist immediately</li>
+            <li>Navigate away and back to verify persistence</li>
+            <li>Refresh the page to test localStorage restoration</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>LocalStorage Inspector</h3>
+        <button onclick="checkLocalStorage()">Check Current Storage</button>
+        <button onclick="clearStorage()">Clear Storage</button>
+        <pre id="storage-content">Click "Check Current Storage" to view</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Scenarios</h3>
+        <button onclick="testRankValidation()">Test Rank Validation</button>
+        <button onclick="testSportsSorting()">Test Sports Sorting</button>
+        <pre id="test-results">Results will appear here</pre>
+    </div>
+
+    <script>
+        function checkLocalStorage() {
+            const storageContent = document.getElementById('storage-content');
+            const onboardingStatus = localStorage.getItem('corner-league-onboarding-status');
+
+            if (onboardingStatus) {
+                try {
+                    const parsed = JSON.parse(onboardingStatus);
+                    storageContent.textContent = JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    storageContent.textContent = 'Error parsing storage: ' + e.message;
+                }
+            } else {
+                storageContent.textContent = 'No onboarding status found in localStorage';
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('corner-league-onboarding-status');
+            localStorage.removeItem('corner-league-onboarding-progress');
+            localStorage.removeItem('corner-league-user-first-visit');
+            document.getElementById('storage-content').textContent = 'Storage cleared';
+        }
+
+        function testRankValidation() {
+            const results = document.getElementById('test-results');
+            const testCases = [
+                {
+                    name: "Valid ranks",
+                    sports: [
+                        { id: '1', isSelected: true, rank: 1 },
+                        { id: '2', isSelected: true, rank: 2 },
+                        { id: '3', isSelected: false, rank: 0 }
+                    ],
+                    expected: true
+                },
+                {
+                    name: "Duplicate ranks",
+                    sports: [
+                        { id: '1', isSelected: true, rank: 1 },
+                        { id: '2', isSelected: true, rank: 1 },
+                        { id: '3', isSelected: false, rank: 0 }
+                    ],
+                    expected: false
+                },
+                {
+                    name: "Missing rank in sequence",
+                    sports: [
+                        { id: '1', isSelected: true, rank: 1 },
+                        { id: '2', isSelected: true, rank: 3 },
+                        { id: '3', isSelected: false, rank: 0 }
+                    ],
+                    expected: false
+                }
+            ];
+
+            let output = "Rank Validation Tests:\n\n";
+
+            testCases.forEach(testCase => {
+                // Simulate the validation function
+                const selectedSports = testCase.sports.filter(sport => sport.isSelected);
+                const ranks = selectedSports.map(sport => sport.rank);
+                const uniqueRanks = new Set(ranks);
+                const hasValidRanks = ranks.length === uniqueRanks.size;
+
+                const sortedRanks = [...ranks].sort((a, b) => a - b);
+                const hasSequentialRanks = sortedRanks.every((rank, i) => rank === i + 1);
+
+                const result = hasValidRanks && hasSequentialRanks;
+                const passed = result === testCase.expected;
+
+                output += `${testCase.name}: ${passed ? 'PASS' : 'FAIL'}\n`;
+                output += `  Expected: ${testCase.expected}, Got: ${result}\n\n`;
+            });
+
+            results.textContent = output;
+        }
+
+        function testSportsSorting() {
+            const results = document.getElementById('test-results');
+
+            // Simulate sports sorting logic
+            const mockSports = [
+                { id: 'nfl', name: 'NFL', isSelected: true, rank: 2 },
+                { id: 'nba', name: 'NBA', isSelected: true, rank: 1 },
+                { id: 'mlb', name: 'MLB', isSelected: false, rank: 0 },
+                { id: 'nhl', name: 'NHL', isSelected: true, rank: 3 },
+                { id: 'mls', name: 'MLS', isSelected: false, rank: 0 }
+            ];
+
+            const sortedSports = [...mockSports].sort((a, b) => {
+                if (a.isSelected && b.isSelected) {
+                    return a.rank - b.rank;
+                }
+                if (a.isSelected && !b.isSelected) {
+                    return -1;
+                }
+                if (!a.isSelected && b.isSelected) {
+                    return 1;
+                }
+                return 0;
+            });
+
+            let output = "Sports Sorting Test:\n\n";
+            output += "Expected order: NBA (rank 1), NFL (rank 2), NHL (rank 3), MLB (unselected), MLS (unselected)\n\n";
+            output += "Actual order:\n";
+
+            sortedSports.forEach((sport, index) => {
+                output += `${index + 1}. ${sport.name} (${sport.isSelected ? 'rank ' + sport.rank : 'unselected'})\n`;
+            });
+
+            const expectedOrder = ['NBA', 'NFL', 'NHL', 'MLB', 'MLS'];
+            const actualOrder = sortedSports.map(sport => sport.name);
+            const passed = JSON.stringify(expectedOrder) === JSON.stringify(actualOrder);
+
+            output += `\nTest Result: ${passed ? 'PASS' : 'FAIL'}`;
+
+            results.textContent = output;
+        }
+
+        // Check storage on page load
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

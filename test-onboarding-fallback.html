@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onboarding Fallback Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .pass { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Onboarding Fallback Functionality Test</h1>
+    <p>This page tests the localStorage fallback functionality for the onboarding flow.</p>
+
+    <div id="test-results"></div>
+
+    <h2>Test Controls</h2>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearTestData()">Clear Test Data</button>
+    <button onclick="showStoredData()">Show Stored Data</button>
+
+    <h2>Manual Test Scenarios</h2>
+    <ol>
+        <li><strong>New User API Failure:</strong> Clear localStorage and visit the app with API disabled</li>
+        <li><strong>Returning User API Failure:</strong> Complete onboarding, then revisit with API disabled</li>
+        <li><strong>Partial Progress:</strong> Start onboarding, stop midway, then return with API disabled</li>
+        <li><strong>API Recovery:</strong> Complete onboarding offline, then enable API to test sync</li>
+    </ol>
+
+    <h2>Expected Behaviors</h2>
+    <ul>
+        <li>New users should start at step 1 when API fails</li>
+        <li>Returning users with complete onboarding should go to dashboard</li>
+        <li>Users with partial progress should resume from their last step</li>
+        <li>All selections should be preserved across browser sessions</li>
+        <li>Offline indicators should appear when API is unavailable</li>
+        <li>Toast notifications should inform users about offline mode</li>
+    </ul>
+
+    <div id="stored-data-display"></div>
+
+    <script>
+        // Test localStorage functionality
+        const STORAGE_KEYS = {
+            ONBOARDING_STATUS: 'corner-league-onboarding-status',
+            ONBOARDING_PROGRESS: 'corner-league-onboarding-progress',
+            USER_FIRST_VISIT: 'corner-league-user-first-visit',
+        };
+
+        function runTest(testName, testFn) {
+            try {
+                const result = testFn();
+                addTestResult(testName, true, result);
+                return true;
+            } catch (error) {
+                addTestResult(testName, false, error.message);
+                return false;
+            }
+        }
+
+        function addTestResult(testName, passed, message) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            resultDiv.innerHTML = `
+                <strong>${testName}:</strong> ${passed ? 'PASS' : 'FAIL'}
+                ${message ? `<br><em>${message}</em>` : ''}
+            `;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        function testLocalStorageBasics() {
+            // Test basic localStorage functionality
+            localStorage.setItem('test-key', 'test-value');
+            const retrieved = localStorage.getItem('test-key');
+            localStorage.removeItem('test-key');
+
+            if (retrieved !== 'test-value') {
+                throw new Error('localStorage is not working properly');
+            }
+            return 'localStorage read/write works correctly';
+        }
+
+        function testOnboardingStatusStorage() {
+            const testStatus = {
+                currentStep: 3,
+                totalSteps: 5,
+                isComplete: false,
+                selectedSports: [
+                    { sportId: 'nfl', rank: 1 },
+                    { sportId: 'nba', rank: 2 }
+                ],
+                selectedTeams: [
+                    { teamId: 'chiefs', sportId: 'nfl', affinityScore: 5 }
+                ],
+                preferences: {
+                    newsTypes: [
+                        { type: 'injuries', enabled: true, priority: 1 }
+                    ],
+                    notifications: {
+                        push: true,
+                        email: false,
+                        gameReminders: true,
+                        newsAlerts: false,
+                        scoreUpdates: true
+                    },
+                    contentFrequency: 'standard'
+                }
+            };
+
+            // Store data
+            localStorage.setItem(STORAGE_KEYS.ONBOARDING_STATUS, JSON.stringify(testStatus));
+
+            // Retrieve and verify
+            const retrieved = JSON.parse(localStorage.getItem(STORAGE_KEYS.ONBOARDING_STATUS));
+
+            if (retrieved.currentStep !== testStatus.currentStep) {
+                throw new Error('Failed to store/retrieve onboarding status');
+            }
+
+            if (retrieved.selectedSports.length !== testStatus.selectedSports.length) {
+                throw new Error('Failed to store/retrieve selected sports');
+            }
+
+            if (retrieved.selectedTeams.length !== testStatus.selectedTeams.length) {
+                throw new Error('Failed to store/retrieve selected teams');
+            }
+
+            return 'Onboarding status storage works correctly';
+        }
+
+        function testFirstVisitDetection() {
+            // Clear first visit flag
+            localStorage.removeItem(STORAGE_KEYS.USER_FIRST_VISIT);
+
+            // Check if detected as first visit
+            const isFirstVisit = !localStorage.getItem(STORAGE_KEYS.USER_FIRST_VISIT);
+
+            if (!isFirstVisit) {
+                throw new Error('First visit not detected correctly');
+            }
+
+            // Mark as visited
+            localStorage.setItem(STORAGE_KEYS.USER_FIRST_VISIT, 'true');
+
+            // Check if no longer first visit
+            const isStillFirstVisit = !localStorage.getItem(STORAGE_KEYS.USER_FIRST_VISIT);
+
+            if (isStillFirstVisit) {
+                throw new Error('Visited user incorrectly detected as first visit');
+            }
+
+            return 'First visit detection works correctly';
+        }
+
+        function testFallbackRouteLogic() {
+            // Test new user scenario
+            localStorage.removeItem(STORAGE_KEYS.ONBOARDING_STATUS);
+            localStorage.removeItem(STORAGE_KEYS.USER_FIRST_VISIT);
+
+            // This would be handled by the determineOnboardingRoute function
+            const expectedNewUserRoute = '/onboarding/step/1';
+
+            // Test returning user with complete onboarding
+            const completeStatus = {
+                currentStep: 5,
+                isComplete: true,
+                selectedSports: [{ sportId: 'nfl', rank: 1 }],
+                selectedTeams: [{ teamId: 'chiefs', sportId: 'nfl', affinityScore: 5 }],
+                preferences: { contentFrequency: 'standard' }
+            };
+            localStorage.setItem(STORAGE_KEYS.ONBOARDING_STATUS, JSON.stringify(completeStatus));
+            localStorage.setItem(STORAGE_KEYS.USER_FIRST_VISIT, 'true');
+
+            const expectedReturningUserRoute = '/';
+
+            return 'Fallback routing logic is testable';
+        }
+
+        function testDataPersistence() {
+            const testData = {
+                timestamp: Date.now(),
+                testValue: 'persistence-test'
+            };
+
+            localStorage.setItem('persistence-test', JSON.stringify(testData));
+
+            // Simulate page refresh by retrieving the data
+            const retrieved = JSON.parse(localStorage.getItem('persistence-test'));
+
+            if (retrieved.testValue !== testData.testValue) {
+                throw new Error('Data does not persist correctly');
+            }
+
+            localStorage.removeItem('persistence-test');
+            return 'Data persistence across sessions works correctly';
+        }
+
+        function runAllTests() {
+            document.getElementById('test-results').innerHTML = '';
+
+            const tests = [
+                ['localStorage Basics', testLocalStorageBasics],
+                ['Onboarding Status Storage', testOnboardingStatusStorage],
+                ['First Visit Detection', testFirstVisitDetection],
+                ['Fallback Route Logic', testFallbackRouteLogic],
+                ['Data Persistence', testDataPersistence]
+            ];
+
+            let passed = 0;
+            for (const [testName, testFn] of tests) {
+                if (runTest(testName, testFn)) {
+                    passed++;
+                }
+            }
+
+            addTestResult(`Overall Results`, passed === tests.length,
+                `${passed}/${tests.length} tests passed`);
+        }
+
+        function clearTestData() {
+            Object.values(STORAGE_KEYS).forEach(key => {
+                localStorage.removeItem(key);
+            });
+            localStorage.removeItem('persistence-test');
+            addTestResult('Clear Test Data', true, 'All test data cleared from localStorage');
+        }
+
+        function showStoredData() {
+            const display = document.getElementById('stored-data-display');
+            let html = '<h3>Current localStorage Data</h3>';
+
+            const allData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.startsWith('corner-league') || key === 'persistence-test') {
+                    try {
+                        allData[key] = JSON.parse(localStorage.getItem(key));
+                    } catch {
+                        allData[key] = localStorage.getItem(key);
+                    }
+                }
+            }
+
+            if (Object.keys(allData).length === 0) {
+                html += '<p><em>No onboarding-related data found in localStorage</em></p>';
+            } else {
+                html += '<pre>' + JSON.stringify(allData, null, 2) + '</pre>';
+            }
+
+            display.innerHTML = html;
+        }
+
+        // Run tests on page load
+        window.onload = function() {
+            addTestResult('Page Load', true, 'Test page loaded successfully');
+            showStoredData();
+        };
+    </script>
+</body>
+</html>

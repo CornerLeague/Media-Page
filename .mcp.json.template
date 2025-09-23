@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "your-context7-api-key-here"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    },
+  "Ref": {
+    "command": "npx",
+    "args": ["ref-tools-mcp@latest"],
+    "env": {
+      "REF_API_KEY": "your-ref-api-key-here"
+    }
+},
+"semgrep": {
+      "command": "uvx",
+      "args": ["semgrep-mcp"]
+    },
+    "exa": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.exa.ai/mcp?exaApiKey=your-exa-api-key-here"
+      ]
+    },
+     "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    }
+  }
+}

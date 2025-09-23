@@ -24,3 +24,76 @@ dist-ssr
 *.sw?
 *.env
 *.env.docker
+
+# Test artifacts
+test-results/
+playwright-report/
+playwright-report.json
+playwright-results.xml
+e2e-report/
+coverage/
+
+# MCP Configuration (contains API keys)
+.mcp.json
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/.ropeproject
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Firebase/Google credentials
+**/firebase-adminsdk*.json
+google-credentials.json
+service-account*.json
+
+# Backend specific
+backend/venv/
+backend/.env
+backend/.env.local
+backend/.env.production
+backend/.env.development
+backend/logs/
+backend/*.log
+
+# Security and credentials
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+secrets.json
+config.json
+*secret*
+*credential*

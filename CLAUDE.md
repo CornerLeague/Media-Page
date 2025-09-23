@@ -170,7 +170,7 @@ Based on the INITIAL.md specification, this project is intended to evolve into a
 - FastAPI backend integration
 - Supabase/PostgreSQL database
 - Real-time WebSocket updates
-- Clerk authentication
+- Firebase authentication
 - Redis caching and job queues
 - AI-powered content classification
 - Personalized team preferences
@@ -184,3 +184,34 @@ Based on the INITIAL.md specification, this project is intended to evolve into a
 4. For production build: `npm run build`
 
 The application follows modern React development practices with a focus on performance, accessibility, and maintainable code architecture.
+
+## Strict Development Rules
+
+### 1. Documentation Review Protocol
+**MANDATORY:** Before working with any tool, CLI, MCP server, or application, ALWAYS first review the documentation in Argon using the available documentation tools. If documentation is not available in Argon, explicitly state "Documentation is not available in Argon" and recommend using alternative methods to review documentation (official docs, GitHub repositories, etc.).
+
+### 2. Complex Task Planning
+**MANDATORY:** When creating a complex plan to fix bugs or add new features, take the md file that is created and create a sub-document (`.md` file) that breaks down those tasks into detailed sub-tasks. This ensures better development handling and clear progress tracking. The sub-document should include:
+- The referenced main md file
+- Detailed breakdown of sub-tasks
+- Dependencies between tasks
+- Acceptance criteria for each sub-task
+- Estimated effort and timeline
+
+### 3. Agent Delegation Protocol
+**MANDATORY:** ALWAYS use the feature-planner sub-agent and delegation sub-agent to assign the correct specialized sub-agent to each task. This ensures that:
+- Each development task is handled by the most appropriate specialized agent
+- Proper handoff protocols are established between agents
+- Quality gates are met before task delegation
+- Development work is consistently performed by the correct sub-agents every single time
+
+**Agent Assignment Guidelines:**
+- frontend development → nextjs-frontend-dev agent
+- backend API development → fastapi-backend-architect agent
+- database work → db-etl-architect agent
+- testing infrastructure → validation-testing agent
+- CI/CD and releases → release-pr agent
+- DevOps and infrastructure → dev-ops-stack agent
+- Complex planning and coordination → feature-planner agent
+
+These rules are NON-NEGOTIABLE and must be followed for every development task, bug fix, or feature implementation.

@@ -6,13 +6,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { UserButton, useAuth, useUser } from "@clerk/clerk-react";
+import { UserProfile } from "@/components/auth/UserProfile";
+import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 export const TopNavBar = () => {
-  const { isSignedIn, isLoaded } = useAuth();
-  const { user } = useUser();
+  const { isAuthenticated, isLoading, user } = useFirebaseAuth();
   const navigate = useNavigate();
 
   const handleSignIn = () => {
@@ -28,7 +28,14 @@ export const TopNavBar = () => {
         </h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <ChevronDown className="h-6 w-6 text-foreground cursor-pointer" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-1 text-foreground hover:bg-muted/50"
+              aria-label="Select sports league"
+            >
+              <ChevronDown className="h-6 w-6" />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem>NFL</DropdownMenuItem>
@@ -43,24 +50,15 @@ export const TopNavBar = () => {
       <div className="flex items-center gap-3">
         <ThemeToggle />
 
-        {isLoaded ? (
-          isSignedIn ? (
+        {!isLoading ? (
+          isAuthenticated ? (
             <div className="flex items-center gap-2">
-              {user?.firstName && (
+              {user?.displayName && (
                 <span className="text-sm font-medium text-foreground hidden sm:inline">
-                  Welcome, {user.firstName}
+                  Welcome, {user.displayName}
                 </span>
               )}
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "w-10 h-10 border-2 border-border/20",
-                    userButtonPopoverCard: "shadow-lg border border-border/20",
-                    userButtonPopoverActionButton: "hover:bg-muted/50",
-                  }
-                }}
-                afterSignOutUrl="/auth/sign-in"
-              />
+              <UserProfile />
             </div>
           ) : (
             <Button

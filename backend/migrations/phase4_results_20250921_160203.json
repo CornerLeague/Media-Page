@@ -1,0 +1,160 @@
+{
+  "migration_info": {
+    "phase": "4 - Schema Finalization",
+    "timestamp": "2025-09-21T16:02:03.265668",
+    "database": "sports_platform.db",
+    "backup": "sports_platform.db_phase4_rollback_20250921_160203.db"
+  },
+  "validation_results": {
+    "pre_migration": {
+      "timestamp": "2025-09-21T16:02:03.259749",
+      "phase": "pre-migration",
+      "checks": {
+        "total_teams": 203,
+        "active_memberships": 142,
+        "multi_league_teams": 17,
+        "orphaned_teams": 78,
+        "valid_memberships": 142,
+        "teams_schema": {
+          "id": "TEXT",
+          "sport_id": "TEXT",
+          "league_id": "TEXT",
+          "name": "TEXT",
+          "market": "TEXT",
+          "slug": "TEXT",
+          "abbreviation": "TEXT",
+          "logo_url": "TEXT",
+          "primary_color": "TEXT",
+          "secondary_color": "TEXT",
+          "is_active": "BOOLEAN",
+          "external_id": "TEXT",
+          "created_at": "DATETIME",
+          "updated_at": "DATETIME",
+          "official_name": "TEXT",
+          "short_name": "TEXT",
+          "country_code": "TEXT",
+          "founding_year": "INTEGER"
+        },
+        "has_deprecated_league_id": true,
+        "team_indexes": [
+          "idx_teams_sport_league",
+          "idx_teams_founding_year",
+          "idx_teams_country_code",
+          "sqlite_autoindex_teams_2",
+          "sqlite_autoindex_teams_1"
+        ],
+        "membership_indexes": [
+          "idx_team_league_active_membership",
+          "idx_team_league_memberships_season",
+          "idx_team_league_memberships_active",
+          "idx_team_league_memberships_league_id",
+          "idx_team_league_memberships_team_id",
+          "sqlite_autoindex_team_league_memberships_2",
+          "sqlite_autoindex_team_league_memberships_1"
+        ]
+      }
+    },
+    "post_migration": {
+      "timestamp": "2025-09-21T16:02:03.264503",
+      "phase": "post-migration",
+      "checks": {
+        "teams_schema": {
+          "id": "TEXT",
+          "sport_id": "TEXT",
+          "name": "TEXT",
+          "market": "TEXT",
+          "slug": "TEXT",
+          "abbreviation": "TEXT",
+          "logo_url": "TEXT",
+          "primary_color": "TEXT",
+          "secondary_color": "TEXT",
+          "is_active": "BOOLEAN",
+          "external_id": "TEXT",
+          "created_at": "DATETIME",
+          "updated_at": "DATETIME",
+          "official_name": "TEXT",
+          "short_name": "TEXT",
+          "country_code": "TEXT",
+          "founding_year": "INTEGER"
+        },
+        "deprecated_column_removed": true,
+        "total_teams": 203,
+        "active_memberships": 0,
+        "orphaned_teams": 203,
+        "foreign_key_violations": 0,
+        "team_indexes": [
+          "idx_teams_market_search",
+          "idx_teams_name_search",
+          "idx_teams_sport_country",
+          "idx_teams_is_active",
+          "idx_teams_slug",
+          "idx_teams_sport_id",
+          "sqlite_autoindex_teams_1"
+        ],
+        "membership_indexes": [
+          "idx_team_league_memberships_composite",
+          "idx_team_league_memberships_season_active",
+          "idx_team_league_memberships_team_count",
+          "idx_team_league_memberships_league_active",
+          "idx_team_league_memberships_team_active",
+          "idx_team_league_active_membership",
+          "idx_team_league_memberships_season",
+          "idx_team_league_memberships_active",
+          "idx_team_league_memberships_league_id",
+          "idx_team_league_memberships_team_id",
+          "sqlite_autoindex_team_league_memberships_2",
+          "sqlite_autoindex_team_league_memberships_1"
+        ],
+        "multi_league_query_time": 2.6e-05,
+        "multi_league_teams_found": 0
+      }
+    },
+    "performance_report": {
+      "timestamp": "2025-09-21T16:02:03.265644",
+      "database_stats": {
+        "size_mb": 0.39,
+        "page_count": 100,
+        "page_size": 4096
+      },
+      "index_analysis": {
+        "teams_indexes": 7,
+        "membership_indexes": 12,
+        "total_indexes": 19
+      },
+      "optimization_summary": {
+        "deprecated_column_removed": true,
+        "performance_indexes_added": true,
+        "foreign_key_constraints_optimized": true,
+        "query_patterns_optimized": true
+      },
+      "recommendations": [
+        "Monitor query performance in production",
+        "Consider partitioning if team count exceeds 100,000",
+        "Implement connection pooling for high-load scenarios",
+        "Regular VACUUM and ANALYZE operations recommended"
+      ]
+    },
+    "api_compatibility": {
+      "timestamp": "2025-09-21T16:02:03.264653",
+      "tests": {
+        "team_leagues_lookup": {
+          "status": "no_data"
+        },
+        "league_teams_lookup": {
+          "status": "no_data"
+        },
+        "multi_league_teams": {
+          "status": "success",
+          "count": 0,
+          "examples": []
+        },
+        "search_functionality": {
+          "status": "success",
+          "count": 0,
+          "examples": []
+        }
+      }
+    }
+  },
+  "migration_status": "completed"
+}

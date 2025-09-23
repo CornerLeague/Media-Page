@@ -4,6 +4,7 @@ Sports-related schemas for team selection endpoints
 
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 from .common import BaseSchema, IDMixin, TimestampMixin, PaginatedResponse
@@ -225,6 +226,56 @@ class SoccerTeamFilters(BaseModel):
 # Pagination response types for new schemas
 MultiLeagueTeamsPaginatedResponse = PaginatedResponse[MultiLeagueTeamResponse]
 TeamLeagueMembershipsPaginatedResponse = PaginatedResponse[TeamLeagueMembershipResponse]
+
+# Enhanced search schemas for Phase 2A
+
+class SearchMatchInfo(BaseModel):
+    """Information about what matched in the search"""
+    field: str = Field(..., description="Field that matched (name, market, abbreviation, etc.)")
+    value: str = Field(..., description="The matched value")
+    highlighted: str = Field(..., description="The value with search term highlighted")
+
+
+class SearchMetadata(BaseModel):
+    """Metadata about the search operation"""
+    query: Optional[str] = Field(None, description="Original search query")
+    total_matches: int = Field(..., description="Total number of matches found")
+    response_time_ms: float = Field(..., description="Search response time in milliseconds")
+    filters_applied: dict = Field(default_factory=dict, description="Applied filters")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Search timestamp")
+
+
+class EnhancedTeamResponse(TeamResponse):
+    """Enhanced team response with search highlighting and metadata"""
+    search_matches: List[SearchMatchInfo] = Field(default_factory=list, description="Fields that matched the search")
+    relevance_score: Optional[float] = Field(None, description="Relevance score for search ranking")
+
+
+class EnhancedTeamsPaginatedResponse(BaseModel):
+    """Enhanced paginated response with search metadata"""
+    items: List[EnhancedTeamResponse] = Field(default_factory=list, description="List of teams")
+    total: int = Field(0, description="Total number of items")
+    page: int = Field(1, description="Current page number")
+    page_size: int = Field(20, description="Number of items per page")
+    has_next: bool = Field(False, description="Whether there are more pages")
+    has_previous: bool = Field(False, description="Whether there are previous pages")
+    search_metadata: SearchMetadata = Field(..., description="Search operation metadata")
+
+
+class TeamSearchSuggestion(BaseModel):
+    """Team search suggestion/autocomplete"""
+    suggestion: str = Field(..., description="Suggested search term")
+    type: str = Field(..., description="Type of suggestion (team_name, market, abbreviation)")
+    team_count: int = Field(..., description="Number of teams matching this suggestion")
+    preview_teams: List[str] = Field(default_factory=list, description="Preview team names")
+
+
+class SearchSuggestionsResponse(BaseModel):
+    """Response for search suggestions/autocomplete"""
+    query: str = Field(..., description="Original query")
+    suggestions: List[TeamSearchSuggestion] = Field(default_factory=list, description="List of suggestions")
+    response_time_ms: float = Field(..., description="Response time in milliseconds")
+
 
 # Update forward references
 SportWithLeagues.model_rebuild()

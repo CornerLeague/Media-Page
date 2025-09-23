@@ -145,4 +145,13 @@ Based on uploaded reference images with precise color matching
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Search highlighting styles */
+  mark {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary));
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+  }
 }

@@ -1,19 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, type Team, type TeamSearchParams } from '@/lib/api-client';
+import { apiClient, type Team, type TeamSearchParams, type EnhancedTeam, type EnhancedTeamSearchResponse } from '@/lib/api-client';
 
 interface UseTeamSelectionOptions {
   sportIds?: string[];
+  leagueIds?: string[];
   initialSelectedTeams?: Team[];
   debounceMs?: number;
   pageSize?: number;
+  useEnhancedSearch?: boolean;
 }
 
 export function useTeamSelection({
   sportIds = [],
+  leagueIds = [],
   initialSelectedTeams = [],
   debounceMs = 300,
   pageSize = 50,
+  useEnhancedSearch = true,
 }: UseTeamSelectionOptions = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -33,20 +37,25 @@ export function useTeamSelection({
   const searchParams: TeamSearchParams = {
     query: debouncedQuery || undefined,
     sport_id: sportIds.length > 0 ? sportIds.join(',') : undefined,
+    league_id: leagueIds.length > 0 ? leagueIds.join(',') : undefined,
     page_size: pageSize,
     is_active: true,
   };
 
-  // Team search query
+  // Team search query (enhanced or regular)
   const {
     data: searchResults,
     isLoading: isSearching,
     error: searchError,
     refetch: refetchTeams,
   } = useQuery({
-    queryKey: ['teams', 'search', searchParams],
-    queryFn: () => apiClient.searchTeams(searchParams),
-    enabled: (debouncedQuery.length >= 2) || (sportIds.length > 0 && debouncedQuery.length === 0),
+    queryKey: useEnhancedSearch
+      ? ['teams', 'search-enhanced', searchParams]
+      : ['teams', 'search', searchParams],
+    queryFn: () => useEnhancedSearch
+      ? apiClient.searchTeamsEnhanced(searchParams)
+      : apiClient.searchTeams(searchParams),
+    enabled: (debouncedQuery.length >= 2) || ((sportIds.length > 0 || leagueIds.length > 0) && debouncedQuery.length === 0),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -87,11 +96,11 @@ export function useTeamSelection({
 
   // Get filtered teams (search results or all teams for selected sports)
   const teams = searchResults?.items || [];
+  const enhancedTeams = useEnhancedSearch ? (teams as EnhancedTeam[]) : [];
+  const searchMetadata = useEnhancedSearch ? (searchResults as EnhancedTeamSearchResponse)?.search_metadata : undefined;
 
-  // Memoize setSelectedTeams to prevent infinite re-render loops
-  const memoizedSetSelectedTeams = useCallback((teams: Team[] | ((prev: Team[]) => Team[])) => {
-    setSelectedTeams(teams);
-  }, []);
+  // Create stable reference to setSelectedTeams
+  const memoizedSetSelectedTeams = setSelectedTeams;
 
   return {
     // Search state
@@ -104,8 +113,10 @@ export function useTeamSelection({
 
     // Teams data
     teams,
+    enhancedTeams, // Enhanced teams with search highlighting
     totalTeams: searchResults?.total || 0,
     hasMoreTeams: searchResults?.has_next || false,
+    searchMetadata, // Enhanced search metadata
 
     // Selection state
     selectedTeams,
@@ -120,6 +131,9 @@ export function useTeamSelection({
     // Dropdown state
     isDropdownOpen,
     setIsDropdownOpen,
+
+    // Enhanced search features
+    useEnhancedSearch,
   };
 }
 

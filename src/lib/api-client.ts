@@ -244,6 +244,47 @@ export interface TeamSearchParams {
   page_size?: number;    // Items per page (1-100, default: 20)
 }
 
+// Enhanced Team Search Types
+export interface SearchMatchInfo {
+  field: string;
+  value: string;
+  highlighted: string;
+}
+
+export interface EnhancedTeam extends Team {
+  search_matches: SearchMatchInfo[];
+  relevance_score: number;
+}
+
+export interface EnhancedTeamSearchResponse {
+  items: EnhancedTeam[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+  search_metadata: {
+    query?: string;
+    total_matches: number;
+    response_time_ms: number;
+    filters_applied: Record<string, any>;
+    timestamp: string;
+  };
+}
+
+export interface SearchSuggestion {
+  suggestion: string;
+  type: 'team_name' | 'market' | 'league' | 'sport';
+  team_count: number;
+  preview_teams: string[];
+}
+
+export interface SearchSuggestionsResponse {
+  query: string;
+  suggestions: SearchSuggestion[];
+  response_time_ms: number;
+}
+
 export interface Team {
   id: string;
   sport_id: string;
@@ -548,9 +589,60 @@ export class ApiClient {
     });
   }
 
+  // Enhanced Team Search API Methods
+  async searchTeamsEnhanced(params?: TeamSearchParams): Promise<EnhancedTeamSearchResponse> {
+    return this.request<EnhancedTeamSearchResponse>('/teams/search-enhanced', {
+      params: params as Record<string, string | number | boolean>,
+      skipAuth: true, // Team search is public
+    });
+  }
+
+  async getSearchSuggestions(query: string): Promise<SearchSuggestionsResponse> {
+    return this.request<SearchSuggestionsResponse>('/teams/search-suggestions', {
+      params: { query },
+      skipAuth: true, // Search suggestions are public
+    });
+  }
+
   // Onboarding API Methods
   async getOnboardingStatus(): Promise<OnboardingStatus> {
-    return this.request<OnboardingStatus>('/onboarding/status');
+    try {
+      return this.request<OnboardingStatus>('/onboarding/status');
+    } catch (error) {
+      // If authentication fails, try the new user fallback endpoint
+      if (error instanceof ApiClientError && (error.statusCode === 401 || error.statusCode === 403)) {
+        console.warn('Authentication failed for onboarding status, using new user fallback');
+        const fallbackResponse = await this.request<OnboardingStatus>('/onboarding/status/new-user', {
+          skipAuth: true
+        });
+
+        // Transform the response to match the expected OnboardingStatus interface
+        return {
+          currentStep: fallbackResponse.current_step || 1,
+          totalSteps: 5,
+          isComplete: fallbackResponse.is_onboarded || false,
+          selectedSports: [],
+          selectedTeams: [],
+          preferences: {
+            newsTypes: [
+              { type: 'injuries', enabled: true, priority: 1 },
+              { type: 'trades', enabled: true, priority: 2 },
+              { type: 'roster', enabled: true, priority: 3 },
+              { type: 'general', enabled: true, priority: 4 }
+            ],
+            notifications: {
+              push: true,
+              email: false,
+              gameReminders: true,
+              newsAlerts: true,
+              scoreUpdates: true
+            },
+            contentFrequency: 'standard'
+          }
+        };
+      }
+      throw error; // Re-throw if it's not an auth error
+    }
   }
 
   async updateOnboardingStep(data: UpdateOnboardingStepRequest): Promise<OnboardingStatus> {
@@ -664,9 +756,79 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
     // Onboarding queries
     getOnboardingStatus: () => ({
       queryKey: ['onboarding', 'status'],
-      queryFn: () => apiClient.getOnboardingStatus(),
+      queryFn: async () => {
+        try {
+          return await apiClient.getOnboardingStatus();
+        } catch (error) {
+          // If we get a 401 or 403, use the fallback endpoint directly
+          if (error instanceof ApiClientError && (error.statusCode === 401 || error.statusCode === 403)) {
+            console.warn('Authentication failed for onboarding status, using new user fallback');
+            try {
+              const fallbackResponse = await apiClient.request<{
+                is_onboarded: boolean;
+                current_step: number;
+                onboarding_completed_at: string | null;
+              }>('/onboarding/status/new-user', {
+                skipAuth: true
+              });
+              // Transform backend response to frontend format
+              return {
+                currentStep: fallbackResponse.current_step || 1,
+                totalSteps: 5,
+                isComplete: fallbackResponse.is_onboarded || false,
+                selectedSports: [],
+                selectedTeams: [],
+                preferences: {
+                  newsTypes: [
+                    { type: 'injuries', enabled: true, priority: 1 },
+                    { type: 'trades', enabled: true, priority: 2 },
+                    { type: 'roster', enabled: true, priority: 3 },
+                    { type: 'general', enabled: true, priority: 4 }
+                  ],
+                  notifications: {
+                    push: true,
+                    email: false,
+                    gameReminders: true,
+                    newsAlerts: true,
+                    scoreUpdates: true
+                  },
+                  contentFrequency: 'standard' as const
+                }
+              };
+            } catch (fallbackError) {
+              console.error('Fallback endpoint also failed:', fallbackError);
+              // Return default new user status if both endpoints fail
+              return {
+                currentStep: 1,
+                totalSteps: 5,
+                isComplete: false,
+                selectedSports: [],
+                selectedTeams: [],
+                preferences: {
+                  newsTypes: [
+                    { type: 'injuries', enabled: true, priority: 1 },
+                    { type: 'trades', enabled: true, priority: 2 },
+                    { type: 'roster', enabled: true, priority: 3 },
+                    { type: 'general', enabled: true, priority: 4 }
+                  ],
+                  notifications: {
+                    push: true,
+                    email: false,
+                    gameReminders: true,
+                    newsAlerts: true,
+                    scoreUpdates: true
+                  },
+                  contentFrequency: 'standard' as const
+                }
+              };
+            }
+          }
+          throw error;
+        }
+      },
       staleTime: 1 * 60 * 1000, // 1 minute
-      enabled: firebaseAuth?.isAuthenticated ?? false,
+      retry: false, // Disable React Query retries - let our custom logic handle fallbacks
+      enabled: true, // Always enabled - fallback logic handles unauthenticated users
     }),
 
     getOnboardingSports: () => ({
@@ -688,6 +850,21 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
       queryFn: () => apiClient.searchTeams(params),
       staleTime: 15 * 60 * 1000, // 15 minutes
       enabled: false, // Enable manually for search
+    }),
+
+    // Enhanced team search queries
+    searchTeamsEnhanced: (params?: TeamSearchParams) => ({
+      queryKey: ['teams', 'search-enhanced', params],
+      queryFn: () => apiClient.searchTeamsEnhanced(params),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      enabled: false, // Enable manually for search
+    }),
+
+    getSearchSuggestions: (query: string) => ({
+      queryKey: ['teams', 'search-suggestions', query],
+      queryFn: () => apiClient.getSearchSuggestions(query),
+      staleTime: 10 * 60 * 1000, // 10 minutes
+      enabled: query.length >= 2, // Only enable for meaningful queries
     }),
   };
 };

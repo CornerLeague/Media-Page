@@ -24,7 +24,9 @@ from backend.api.schemas.sports import (
     UserTeamPreferencesResponse,
     SportsPaginatedResponse,
     LeaguesPaginatedResponse,
-    TeamsPaginatedResponse
+    TeamsPaginatedResponse,
+    EnhancedTeamsPaginatedResponse,
+    SearchSuggestionsResponse
 )
 from backend.models.users import User
 
@@ -184,6 +186,118 @@ async def search_teams(
 
     logger.info(f"Found {teams.total} total teams, returning {len(teams.items)} for page {page}")
     return teams
+
+
+@router.get(
+    "/teams/search-enhanced",
+    response_model=EnhancedTeamsPaginatedResponse,
+    summary="Enhanced team search with metadata and highlighting",
+    description="Enhanced search teams with performance metrics, search highlighting, and relevance scoring"
+)
+async def search_teams_enhanced(
+    query: Optional[str] = Query(None, description="Search query for team name or market"),
+    sport_id: Optional[UUID] = Query(None, description="Filter by sport ID"),
+    league_id: Optional[UUID] = Query(None, description="Filter by league ID"),
+    market: Optional[str] = Query(None, description="Filter by market/city"),
+    is_active: Optional[bool] = Query(True, description="Filter by active status"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Number of items per page"),
+    team_service: TeamSelectionService = Depends(get_team_selection_service)
+) -> EnhancedTeamsPaginatedResponse:
+    """
+    Enhanced search teams with advanced features
+
+    **Features:**
+    - **Search highlighting**: Shows which fields matched your query
+    - **Relevance scoring**: Results ranked by relevance to your search
+    - **Performance metrics**: Response time and search metadata
+    - **Enhanced filtering**: Supports abbreviations and partial matches
+
+    **Search supports:**
+    - Team names (e.g., "Bears", "Lakers", "Patriots")
+    - Market/city names (e.g., "Chicago", "Los Angeles")
+    - Abbreviations (e.g., "CHI", "LAL", "NE")
+    - Partial matches (e.g., "Chi" finds Chicago teams)
+
+    **Filters:**
+    - **query**: Search query for team name or market
+    - **sport_id**: Filter by sport UUID
+    - **league_id**: Filter by league UUID
+    - **market**: Filter by market/city name
+    - **is_active**: Filter by active status
+    - **page**: Page number (1-indexed)
+    - **page_size**: Number of items per page (max 100)
+
+    **Returns:**
+    - Teams with search highlighting
+    - Relevance scores for ranking
+    - Performance metrics (response time)
+    - Applied filters information
+    """
+    logger.info(f"Enhanced team search: query='{query}', sport_id={sport_id}, league_id={league_id}, market='{market}', is_active={is_active}, page={page}, page_size={page_size}")
+
+    search_params = TeamSearchParams(
+        query=query,
+        sport_id=sport_id,
+        league_id=league_id,
+        market=market,
+        is_active=is_active,
+        page=page,
+        page_size=page_size
+    )
+
+    teams = await team_service.search_teams_enhanced(search_params)
+
+    logger.info(f"Enhanced search completed: {teams.search_metadata.total_matches} matches in {teams.search_metadata.response_time_ms:.2f}ms")
+    return teams
+
+
+@router.get(
+    "/teams/search-suggestions",
+    response_model=SearchSuggestionsResponse,
+    summary="Get search suggestions for team autocomplete",
+    description="Get search suggestions and autocomplete options for team search queries"
+)
+async def get_team_search_suggestions(
+    query: str = Query(..., min_length=1, description="Search query (minimum 1 character)"),
+    limit: int = Query(10, ge=1, le=20, description="Maximum number of suggestions"),
+    team_service: TeamSelectionService = Depends(get_team_selection_service)
+) -> SearchSuggestionsResponse:
+    """
+    Get search suggestions for team autocomplete
+
+    **Purpose:**
+    Provides intelligent autocomplete suggestions for team search queries to improve
+    user experience and help users discover teams more easily.
+
+    **Features:**
+    - **Team name suggestions**: Suggests team names that start with your query
+    - **Market/city suggestions**: Suggests cities/markets that start with your query
+    - **Abbreviation suggestions**: Suggests team abbreviations that start with your query
+    - **Team count**: Shows how many teams match each suggestion
+    - **Preview teams**: Shows sample team names for each suggestion
+
+    **Examples:**
+    - Query "Chi" → suggests "Chicago" (market), "Chiefs" (team name), "CHI" (abbreviation)
+    - Query "L" → suggests "Los Angeles" (market), "Lakers" (team name), "LAL" (abbreviation)
+    - Query "Pat" → suggests "Patriots" (team name)
+
+    **Parameters:**
+    - **query**: Search query (minimum 1 character)
+    - **limit**: Maximum number of suggestions (1-20, default 10)
+
+    **Returns:**
+    - Ranked suggestions by relevance (team count and alphabetical)
+    - Team count for each suggestion
+    - Preview of matching teams
+    - Response time for performance monitoring
+    """
+    logger.info(f"Getting search suggestions for query: '{query}' (limit: {limit})")
+
+    suggestions = await team_service.get_search_suggestions(query, limit)
+
+    logger.info(f"Returned {len(suggestions.suggestions)} suggestions in {suggestions.response_time_ms:.2f}ms")
+    return suggestions
 
 
 @router.get(

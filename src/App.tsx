@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TopNavBar } from "@/components/TopNavBar";
 import { AISummarySection } from "@/components/AISummarySection";
 import { SportsFeedSection } from "@/components/SportsFeedSection";
@@ -25,6 +26,13 @@ const queryClient = new QueryClient({
         if (error && typeof error === 'object' && 'statusCode' in error) {
           const statusCode = (error as any).statusCode;
           if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+            return false;
+          }
+        }
+        // Also check for fetch response errors
+        if (error && typeof error === 'object' && 'status' in error) {
+          const status = (error as any).status;
+          if (status >= 400 && status < 500 && status !== 429) {
             return false;
           }
         }
@@ -56,15 +64,27 @@ function DashboardPage() {
     isAuthenticated ? { getIdToken, isAuthenticated: true, userId: user?.uid } : undefined
   );
 
-  // Check onboarding status first
+  // Development mode bypass
+  const isDevelopmentMode = import.meta.env.VITE_DEVELOPMENT_MODE === 'true';
+  const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+
+  // Check onboarding status first (skip in development mode)
   const {
     data: onboardingStatus,
     isLoading: onboardingLoading,
     error: onboardingError,
-  } = useQuery(queryConfigs.getOnboardingStatus());
+  } = useQuery({
+    ...queryConfigs.getOnboardingStatus(),
+    enabled: !(isDevelopmentMode && bypassAuth), // Disable query in development mode
+  });
 
-  // Redirect to onboarding if not complete (with fallback logic)
+  // Redirect to onboarding if not complete (skip in development mode)
   useEffect(() => {
+    // Skip onboarding checks in development mode
+    if (isDevelopmentMode && bypassAuth) {
+      return;
+    }
+
     if (onboardingError) {
       // API failed, check localStorage for fallback
       import('@/lib/onboarding-storage').then(({ getLocalOnboardingStatus, isFirstVisit }) => {
@@ -79,7 +99,7 @@ function DashboardPage() {
     } else if (onboardingStatus && !onboardingStatus.isComplete) {
       navigate(`/onboarding/step/${onboardingStatus.currentStep}`);
     }
-  }, [onboardingStatus, onboardingError, navigate]);
+  }, [onboardingStatus, onboardingError, navigate, isDevelopmentMode, bypassAuth]);
 
   // Fetch home data to get the user's most liked team
   const {
@@ -104,8 +124,8 @@ function DashboardPage() {
   const isLoading = onboardingLoading || homeLoading || dashboardLoading;
   const error = onboardingError || homeError || dashboardError;
 
-  // Show loading while checking onboarding status
-  if (onboardingLoading) {
+  // Show loading while checking onboarding status (skip in development mode)
+  if (onboardingLoading && !(isDevelopmentMode && bypassAuth)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -116,8 +136,8 @@ function DashboardPage() {
     );
   }
 
-  // Don't render dashboard if onboarding is not complete
-  if (!onboardingStatus?.isComplete) {
+  // Don't render dashboard if onboarding is not complete (skip in development mode)
+  if (!(isDevelopmentMode && bypassAuth) && !onboardingStatus?.isComplete) {
     return null; // Redirect happens in useEffect
   }
 
@@ -175,6 +195,38 @@ function SignInPage() {
   const navigate = useNavigate();
   const { isAuthenticated, getIdToken, user } = useFirebaseAuth();
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(false);
+
+  // Development mode bypass
+  const isDevelopmentMode = import.meta.env.VITE_DEVELOPMENT_MODE === 'true';
+  const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+
+  useEffect(() => {
+    if (isDevelopmentMode && bypassAuth) {
+      console.log('Development mode: Bypassing Firebase authentication');
+      // Simulate successful authentication and go directly to onboarding
+      const simulateAuthSuccess = async () => {
+        setIsCheckingOnboarding(true);
+        try {
+          // Use the fallback endpoint directly
+          const onboardingStatus = await apiClient.getOnboardingStatus();
+          if (onboardingStatus.isComplete) {
+            navigate('/');
+          } else {
+            navigate(`/onboarding/step/${onboardingStatus.currentStep}`);
+          }
+        } catch (error) {
+          console.error('Failed to check onboarding status in dev mode:', error);
+          // Default to onboarding step 1
+          navigate('/onboarding/step/1');
+        } finally {
+          setIsCheckingOnboarding(false);
+        }
+      };
+
+      simulateAuthSuccess();
+      return;
+    }
+  }, [navigate, isDevelopmentMode, bypassAuth]);
 
   // Set up API client with Firebase authentication when user signs in
   useEffect(() => {
@@ -329,6 +381,7 @@ function App() {
         >
           <AppRouter />
           <Toaster />
+          <SonnerToaster />
         </ThemeProvider>
       </QueryClientProvider>
     </FirebaseAuthProvider>

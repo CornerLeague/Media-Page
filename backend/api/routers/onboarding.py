@@ -125,6 +125,24 @@ async def get_onboarding_status(
         )
 
 
+@router.get("/status/new-user", response_model=OnboardingStatusResponse)
+async def get_new_user_onboarding_status() -> OnboardingStatusResponse:
+    """
+    Get default onboarding status for new/unauthenticated users
+
+    This endpoint provides a fallback for when authentication is not yet configured
+    or for new users who haven't completed Firebase setup.
+
+    Returns: Default onboarding status indicating the user should start onboarding
+    """
+    # Return default status for new users - onboarding not complete
+    return OnboardingStatusResponse(
+        is_onboarded=False,
+        current_step=1,
+        onboarding_completed_at=None
+    )
+
+
 @router.put("/step", response_model=OnboardingStatusResponse)
 async def update_onboarding_step(
     step_update: OnboardingStepUpdate,

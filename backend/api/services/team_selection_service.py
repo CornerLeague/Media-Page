@@ -3,9 +3,11 @@ Team selection service for handling sports, leagues, teams, and user preferences
 """
 
 import logging
+import time
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from decimal import Decimal
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_, delete
@@ -28,7 +30,13 @@ from backend.api.schemas.sports import (
     SportsPaginatedResponse,
     LeaguesPaginatedResponse,
     TeamsPaginatedResponse,
-    LeagueInfo
+    LeagueInfo,
+    EnhancedTeamResponse,
+    EnhancedTeamsPaginatedResponse,
+    SearchMetadata,
+    SearchMatchInfo,
+    TeamSearchSuggestion,
+    SearchSuggestionsResponse
 )
 from backend.api.schemas.common import PaginatedResponse
 
@@ -95,6 +103,100 @@ class TeamSelectionService:
                 logger.warning(f"Failed to fetch league memberships for team {team.id}: {str(e)}")
 
         return leagues_info
+
+    def _highlight_search_term(self, text: str, search_term: str) -> str:
+        """Highlight search term in text with HTML tags"""
+        if not text or not search_term:
+            return text
+
+        # Case-insensitive highlighting
+        import re
+        pattern = re.compile(re.escape(search_term), re.IGNORECASE)
+        return pattern.sub(f'<mark>\\g<0></mark>', text)
+
+    def _get_search_matches(self, team: Team, search_query: Optional[str]) -> List[SearchMatchInfo]:
+        """Get information about which fields matched the search query"""
+        matches = []
+        if not search_query:
+            return matches
+
+        search_term = search_query.lower()
+
+        # Check team name
+        if team.name and search_term in team.name.lower():
+            matches.append(SearchMatchInfo(
+                field="name",
+                value=team.name,
+                highlighted=self._highlight_search_term(team.name, search_query)
+            ))
+
+        # Check market/city
+        if team.market and search_term in team.market.lower():
+            matches.append(SearchMatchInfo(
+                field="market",
+                value=team.market,
+                highlighted=self._highlight_search_term(team.market, search_query)
+            ))
+
+        # Check abbreviation
+        if team.abbreviation and search_term in team.abbreviation.lower():
+            matches.append(SearchMatchInfo(
+                field="abbreviation",
+                value=team.abbreviation,
+                highlighted=self._highlight_search_term(team.abbreviation, search_query)
+            ))
+
+        # Check display name
+        display_name = team.display_name
+        if display_name and search_term in display_name.lower():
+            matches.append(SearchMatchInfo(
+                field="display_name",
+                value=display_name,
+                highlighted=self._highlight_search_term(display_name, search_query)
+            ))
+
+        return matches
+
+    def _calculate_relevance_score(self, team: Team, search_query: Optional[str]) -> float:
+        """Calculate relevance score for search results"""
+        if not search_query:
+            return 1.0
+
+        search_term = search_query.lower()
+        score = 0.0
+
+        # Exact name match gets highest score
+        if team.name and team.name.lower() == search_term:
+            score += 10.0
+        elif team.name and team.name.lower().startswith(search_term):
+            score += 8.0
+        elif team.name and search_term in team.name.lower():
+            score += 5.0
+
+        # Market match
+        if team.market and team.market.lower() == search_term:
+            score += 8.0
+        elif team.market and team.market.lower().startswith(search_term):
+            score += 6.0
+        elif team.market and search_term in team.market.lower():
+            score += 3.0
+
+        # Abbreviation match
+        if team.abbreviation and team.abbreviation.lower() == search_term:
+            score += 9.0
+        elif team.abbreviation and search_term in team.abbreviation.lower():
+            score += 7.0
+
+        # Display name match
+        display_name = team.display_name
+        if display_name and display_name.lower() == search_term:
+            score += 9.5
+        elif display_name and display_name.lower().startswith(search_term):
+            score += 7.0
+        elif display_name and search_term in display_name.lower():
+            score += 4.0
+
+        return score
 
     def _get_primary_league_name(self, team: Team) -> Optional[str]:
         """Get primary league name for a team"""
@@ -522,6 +624,272 @@ class TeamSelectionService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to search teams"
+            )
+
+    async def search_teams_enhanced(self, search_params: TeamSearchParams) -> EnhancedTeamsPaginatedResponse:
+        """
+        Enhanced search teams with metadata, highlighting, and performance tracking
+
+        Args:
+            search_params: Search parameters and filters
+
+        Returns:
+            Enhanced paginated list of matching teams with search metadata
+
+        Raises:
+            HTTPException: If database operation fails
+        """
+        start_time = time.time()
+
+        try:
+            # Build base query with comprehensive joins
+            query = select(Team).options(
+                selectinload(Team.sport),
+                selectinload(Team.league_memberships).selectinload(TeamLeagueMembership.league)
+            )
+
+            filters_applied = {}
+
+            # Apply filters
+            if search_params.query:
+                search_term = f"%{search_params.query.lower()}%"
+                query = query.where(
+                    or_(
+                        func.lower(Team.name).like(search_term),
+                        func.lower(Team.market).like(search_term),
+                        func.lower(Team.abbreviation).like(search_term),
+                        func.lower(func.concat(Team.market, ' ', Team.name)).like(search_term)
+                    )
+                )
+                filters_applied["query"] = search_params.query
+
+            if search_params.sport_id:
+                query = query.where(Team.sport_id == search_params.sport_id)
+                filters_applied["sport_id"] = str(search_params.sport_id)
+
+            if search_params.league_id:
+                # Join with league memberships to filter by league
+                query = query.join(TeamLeagueMembership).where(
+                    TeamLeagueMembership.league_id == search_params.league_id,
+                    TeamLeagueMembership.is_active == True
+                )
+                filters_applied["league_id"] = str(search_params.league_id)
+
+            if search_params.market:
+                query = query.where(func.lower(Team.market).like(f"%{search_params.market.lower()}%"))
+                filters_applied["market"] = search_params.market
+
+            if search_params.is_active is not None:
+                query = query.where(Team.is_active == search_params.is_active)
+                filters_applied["is_active"] = search_params.is_active
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_result = await self.db.execute(count_query)
+            total = total_result.scalar()
+
+            # Apply pagination and ordering
+            offset = (search_params.page - 1) * search_params.page_size
+            query = query.order_by(Team.market, Team.name).offset(offset).limit(search_params.page_size)
+
+            # Execute query
+            result = await self.db.execute(query)
+            teams = result.scalars().all()
+
+            # Convert to enhanced response schemas
+            enhanced_teams = []
+            for team in teams:
+                # Get league information
+                leagues_info = await self._get_team_leagues_info(team)
+
+                # Create base team response
+                team_response = self._create_team_response(team, leagues_info)
+
+                # Get search highlighting and relevance
+                search_matches = self._get_search_matches(team, search_params.query)
+                relevance_score = self._calculate_relevance_score(team, search_params.query)
+
+                # Create enhanced response
+                enhanced_team = EnhancedTeamResponse(
+                    **team_response.model_dump(),
+                    search_matches=search_matches,
+                    relevance_score=relevance_score
+                )
+                enhanced_teams.append(enhanced_team)
+
+            # Sort by relevance if there's a search query
+            if search_params.query:
+                enhanced_teams.sort(key=lambda t: t.relevance_score or 0, reverse=True)
+
+            # Calculate response time
+            response_time_ms = (time.time() - start_time) * 1000
+
+            # Create search metadata
+            search_metadata = SearchMetadata(
+                query=search_params.query,
+                total_matches=total,
+                response_time_ms=response_time_ms,
+                filters_applied=filters_applied,
+                timestamp=datetime.utcnow()
+            )
+
+            # Create enhanced paginated response
+            return EnhancedTeamsPaginatedResponse(
+                items=enhanced_teams,
+                total=total,
+                page=search_params.page,
+                page_size=search_params.page_size,
+                has_next=(search_params.page * search_params.page_size) < total,
+                has_previous=search_params.page > 1,
+                search_metadata=search_metadata
+            )
+
+        except Exception as e:
+            logger.error(f"Error in enhanced team search: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to search teams"
+            )
+
+    async def get_search_suggestions(self, query: str, limit: int = 10) -> SearchSuggestionsResponse:
+        """
+        Get search suggestions/autocomplete for team search
+
+        Args:
+            query: Partial search query
+            limit: Maximum number of suggestions to return
+
+        Returns:
+            Search suggestions with preview teams
+
+        Raises:
+            HTTPException: If database operation fails
+        """
+        start_time = time.time()
+
+        try:
+            suggestions = []
+
+            if len(query) < 1:
+                # For very short queries, return empty suggestions
+                return SearchSuggestionsResponse(
+                    query=query,
+                    suggestions=[],
+                    response_time_ms=(time.time() - start_time) * 1000
+                )
+
+            query_lower = query.lower()
+
+            # Get team name suggestions
+            name_query = select(Team.name, func.count().label('count')).where(
+                and_(
+                    func.lower(Team.name).like(f'{query_lower}%'),
+                    Team.is_active == True
+                )
+            ).group_by(Team.name).order_by(func.count().desc(), Team.name).limit(limit)
+
+            name_result = await self.db.execute(name_query)
+            name_suggestions = name_result.all()
+
+            for name, count in name_suggestions:
+                # Get preview teams for this name
+                preview_query = select(Team.name, Team.market).where(
+                    and_(
+                        func.lower(Team.name).like(f'{query_lower}%'),
+                        Team.is_active == True
+                    )
+                ).limit(3)
+
+                preview_result = await self.db.execute(preview_query)
+                preview_teams = [f"{row[1]} {row[0]}" for row in preview_result.all()]
+
+                suggestions.append(TeamSearchSuggestion(
+                    suggestion=name,
+                    type="team_name",
+                    team_count=count,
+                    preview_teams=preview_teams
+                ))
+
+            # Get market suggestions
+            market_query = select(Team.market, func.count().label('count')).where(
+                and_(
+                    func.lower(Team.market).like(f'{query_lower}%'),
+                    Team.is_active == True
+                )
+            ).group_by(Team.market).order_by(func.count().desc(), Team.market).limit(limit)
+
+            market_result = await self.db.execute(market_query)
+            market_suggestions = market_result.all()
+
+            for market, count in market_suggestions:
+                # Get preview teams for this market
+                preview_query = select(Team.name, Team.market).where(
+                    and_(
+                        func.lower(Team.market).like(f'{query_lower}%'),
+                        Team.is_active == True
+                    )
+                ).limit(3)
+
+                preview_result = await self.db.execute(preview_query)
+                preview_teams = [f"{row[1]} {row[0]}" for row in preview_result.all()]
+
+                suggestions.append(TeamSearchSuggestion(
+                    suggestion=market,
+                    type="market",
+                    team_count=count,
+                    preview_teams=preview_teams
+                ))
+
+            # Get abbreviation suggestions
+            abbrev_query = select(Team.abbreviation, func.count().label('count')).where(
+                and_(
+                    Team.abbreviation.isnot(None),
+                    func.lower(Team.abbreviation).like(f'{query_lower}%'),
+                    Team.is_active == True
+                )
+            ).group_by(Team.abbreviation).order_by(func.count().desc(), Team.abbreviation).limit(limit)
+
+            abbrev_result = await self.db.execute(abbrev_query)
+            abbrev_suggestions = abbrev_result.all()
+
+            for abbreviation, count in abbrev_suggestions:
+                # Get preview teams for this abbreviation
+                preview_query = select(Team.name, Team.market).where(
+                    and_(
+                        func.lower(Team.abbreviation).like(f'{query_lower}%'),
+                        Team.is_active == True
+                    )
+                ).limit(3)
+
+                preview_result = await self.db.execute(preview_query)
+                preview_teams = [f"{row[1]} {row[0]}" for row in preview_result.all()]
+
+                suggestions.append(TeamSearchSuggestion(
+                    suggestion=abbreviation,
+                    type="abbreviation",
+                    team_count=count,
+                    preview_teams=preview_teams
+                ))
+
+            # Sort suggestions by relevance (team count desc, then alphabetically)
+            suggestions.sort(key=lambda s: (-s.team_count, s.suggestion))
+
+            # Limit total suggestions
+            suggestions = suggestions[:limit]
+
+            response_time_ms = (time.time() - start_time) * 1000
+
+            return SearchSuggestionsResponse(
+                query=query,
+                suggestions=suggestions,
+                response_time_ms=response_time_ms
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting search suggestions: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get search suggestions"
             )
 
     async def get_user_team_preferences(self, user: User) -> UserTeamPreferencesResponse:

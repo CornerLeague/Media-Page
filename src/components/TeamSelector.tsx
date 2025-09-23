@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Check, ChevronDown, Search, X, AlertCircle } from 'lucide-react';
+import { Check, ChevronDown, Search, X, AlertCircle, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTeamSelection, type UseTeamSelectionReturn } from '@/hooks/useTeamSelection';
-import { type Team } from '@/lib/api-client';
+import { type Team, type EnhancedTeam } from '@/lib/api-client';
+import { TeamSearchInput } from '@/components/TeamSearchInput';
+import { TeamFilterDropdown, createFilterCategoriesFromTeams, type FilterValues } from '@/components/TeamFilterDropdown';
+import { toast } from '@/components/ui/sonner';
 
 interface TeamSelectorProps {
   selectedTeams: Team[];
   onTeamSelect: (teams: Team[]) => void;
   sportIds?: string[];
+  leagueIds?: string[];
   multiSelect?: boolean;
   placeholder?: string;
   searchPlaceholder?: string;
@@ -20,16 +24,22 @@ interface TeamSelectorProps {
   disabled?: boolean;
   error?: string;
   className?: string;
+  showFilters?: boolean;
+  showSearchSuggestions?: boolean;
+  useEnhancedSearch?: boolean;
 }
 
 interface TeamOptionProps {
-  team: Team;
+  team: Team | EnhancedTeam;
   isSelected: boolean;
   onSelect: () => void;
   multiSelect?: boolean;
+  showHighlighting?: boolean;
 }
 
-function TeamOption({ team, isSelected, onSelect, multiSelect = true }: TeamOptionProps) {
+function TeamOption({ team, isSelected, onSelect, multiSelect = true, showHighlighting = false }: TeamOptionProps) {
+  const enhancedTeam = showHighlighting ? (team as EnhancedTeam) : null;
+  const hasSearchMatches = enhancedTeam?.search_matches && enhancedTeam.search_matches.length > 0;
   return (
     <CommandItem
       key={team.id}
@@ -53,11 +63,33 @@ function TeamOption({ team, isSelected, onSelect, multiSelect = true }: TeamOpti
 
       {/* Team info */}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm truncate">{team.display_name}</div>
+        <div className="font-medium text-sm truncate">
+          {hasSearchMatches && enhancedTeam?.search_matches.find(m => m.field === 'display_name') ? (
+            <span
+              dangerouslySetInnerHTML={{
+                __html: enhancedTeam.search_matches.find(m => m.field === 'display_name')?.highlighted || team.display_name
+              }}
+            />
+          ) : (
+            team.display_name
+          )}
+        </div>
         <div className="text-xs text-muted-foreground flex items-center gap-2">
-          <span>{team.league_name}</span>
-          <span>•</span>
-          <span>{team.sport_name}</span>
+          {team.league_name && (
+            <>
+              <span>{team.league_name}</span>
+              <span>•</span>
+            </>
+          )}
+          <span>{team.sport_name || 'Sport'}</span>
+          {enhancedTeam?.relevance_score && (
+            <>
+              <span>•</span>
+              <span className="text-primary font-medium">
+                {Math.round(enhancedTeam.relevance_score)}% match
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -143,16 +175,29 @@ export function TeamSelector({
   selectedTeams,
   onTeamSelect,
   sportIds = [],
+  leagueIds = [],
   multiSelect = true,
   placeholder = "Select teams...",
   searchPlaceholder = "Search for teams...",
-  maxSelections,
+  maxSelections = 10,
   disabled = false,
   error,
   className,
+  showFilters = true,
+  showSearchSuggestions = true,
+  useEnhancedSearch = true,
 }: TeamSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [filterValues, setFilterValues] = useState<FilterValues>({});
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Extract filter IDs from filter values
+  const selectedSportIds = Array.isArray(filterValues.sport) ? filterValues.sport : (filterValues.sport ? [filterValues.sport] : []);
+  const selectedLeagueIds = Array.isArray(filterValues.league) ? filterValues.league : (filterValues.league ? [filterValues.league] : []);
+
+  // Merge prop sportIds/leagueIds with filter values
+  const allSportIds = [...sportIds, ...selectedSportIds];
+  const allLeagueIds = [...leagueIds, ...selectedLeagueIds];
 
   const {
     searchQuery,
@@ -160,16 +205,20 @@ export function TeamSelector({
     isSearching,
     searchError,
     teams,
+    enhancedTeams,
     totalTeams,
+    searchMetadata,
     toggleTeamSelection: internalToggleTeamSelection,
     isTeamSelected,
     selectedTeams: internalSelectedTeams,
     setSelectedTeams: setInternalSelectedTeams,
   } = useTeamSelection({
-    sportIds,
+    sportIds: allSportIds,
+    leagueIds: allLeagueIds,
     initialSelectedTeams: selectedTeams,
     debounceMs: 300,
     pageSize: 50,
+    useEnhancedSearch,
   });
 
   // Sync external selectedTeams with internal state when they change externally
@@ -177,24 +226,47 @@ export function TeamSelector({
     setInternalSelectedTeams(selectedTeams);
   }, [selectedTeams]); // Removed setInternalSelectedTeams to prevent infinite loop
 
-  // Handle team selection
+  // Handle team selection with enhanced feedback
   const handleTeamSelect = (team: Team) => {
     if (disabled) return;
 
     if (multiSelect) {
       // Check max selections limit
       if (maxSelections && !isTeamSelected(team.id) && selectedTeams.length >= maxSelections) {
+        toast.warning(`Maximum of ${maxSelections} teams allowed`, {
+          description: "Please remove a team before adding another.",
+          duration: 3000,
+        });
         return;
       }
 
-      const newSelection = isTeamSelected(team.id)
+      const isCurrentlySelected = isTeamSelected(team.id);
+      const newSelection = isCurrentlySelected
         ? selectedTeams.filter(t => t.id !== team.id)
         : [...selectedTeams, team];
+
       onTeamSelect(newSelection);
+
+      // Show toast feedback for selections
+      if (!isCurrentlySelected) {
+        toast.success(`Added ${team.display_name}`, {
+          description: `${newSelection.length}/${maxSelections || "∞"} teams selected`,
+          duration: 2000,
+        });
+
+        // Warning when approaching limit
+        if (maxSelections && newSelection.length >= maxSelections - 2) {
+          toast.warning(`Approaching limit (${newSelection.length}/${maxSelections})`, {
+            description: "You can select a few more teams.",
+            duration: 3000,
+          });
+        }
+      }
     } else {
       // Single select - close dropdown and select team
       onTeamSelect([team]);
       setIsOpen(false);
+      toast.success(`Selected ${team.display_name}`);
     }
   };
 
@@ -214,6 +286,10 @@ export function TeamSelector({
 
   // Filter out already selected teams from search results
   const availableTeams = teams.filter(team => !isTeamSelected(team.id));
+  const availableEnhancedTeams = enhancedTeams.filter(team => !isTeamSelected(team.id));
+
+  // Create filter categories from available teams
+  const filterCategories = showFilters ? createFilterCategoriesFromTeams(teams) : [];
 
   const hasMaxSelections = maxSelections && selectedTeams.length >= maxSelections;
 
@@ -238,6 +314,47 @@ export function TeamSelector({
           </div>
         </div>
       )}
+
+      {/* Search and Filter Controls */}
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          {/* Search Input */}
+          <div className="flex-1">
+            <TeamSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={searchPlaceholder}
+              disabled={disabled}
+              showSuggestions={showSearchSuggestions}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isOpen) {
+                  setIsOpen(true);
+                }
+              }}
+            />
+          </div>
+
+          {/* Filter Dropdown */}
+          {showFilters && filterCategories.length > 0 && (
+            <div className="w-48">
+              <TeamFilterDropdown
+                categories={filterCategories}
+                values={filterValues}
+                onChange={setFilterValues}
+                disabled={disabled}
+                placeholder="Filter teams..."
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Search metadata display */}
+        {searchMetadata && searchQuery && (
+          <div className="text-xs text-muted-foreground">
+            Found {searchMetadata.total_matches} results in {Math.round(searchMetadata.response_time_ms)}ms
+          </div>
+        )}
+      </div>
 
       {/* Team selector dropdown */}
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -268,17 +385,6 @@ export function TeamSelector({
 
         <PopoverContent className="w-full p-0" align="start">
           <Command>
-            {/* Search input */}
-            <div className="flex items-center border-b px-3">
-              <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-              <Input
-                ref={searchInputRef}
-                placeholder={searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-            </div>
 
             <CommandList className="max-h-[300px]">
               {/* Loading state */}
@@ -325,13 +431,14 @@ export function TeamSelector({
               {/* Teams list */}
               {!isSearching && !searchError && availableTeams.length > 0 && (
                 <CommandGroup>
-                  {availableTeams.map((team) => (
+                  {(useEnhancedSearch ? availableEnhancedTeams : availableTeams).map((team) => (
                     <TeamOption
                       key={team.id}
                       team={team}
                       isSelected={isTeamSelected(team.id)}
                       onSelect={() => handleTeamSelect(team)}
                       multiSelect={multiSelect}
+                      showHighlighting={useEnhancedSearch && !!searchQuery}
                     />
                   ))}
                 </CommandGroup>

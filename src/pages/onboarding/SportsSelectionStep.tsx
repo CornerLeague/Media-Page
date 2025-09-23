@@ -363,13 +363,21 @@ export function SportsSelectionStep() {
   };
 
   const handleSelectPopular = () => {
-    setSports(prevSports =>
-      prevSports.map((sport, index) => ({
+    setSports(prevSports => {
+      const popularRanks = new Map<string, number>();
+
+      prevSports
+        .filter(sport => sport.isPopular)
+        .forEach((sport, index) => {
+          popularRanks.set(sport.id, index + 1);
+        });
+
+      return prevSports.map(sport => ({
         ...sport,
         isSelected: sport.isPopular,
-        rank: sport.isPopular ? index + 1 : 0,
-      }))
-    );
+        rank: popularRanks.get(sport.id) ?? 0,
+      }));
+    });
   };
 
   const handleContinue = async () => {

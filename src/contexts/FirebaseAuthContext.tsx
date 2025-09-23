@@ -56,10 +56,31 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const cloneFirebaseUser = <T extends User>(firebaseUser: T): T => {
+    return Object.assign(
+      Object.create(Object.getPrototypeOf(firebaseUser)),
+      firebaseUser
+    );
+  };
+
+  const updateUserState = (nextUser: User | null) => {
+    if (!nextUser) {
+      setUser(null);
+      return;
+    }
+
+    setUser((previousUser) => {
+      if (previousUser === nextUser) {
+        return cloneFirebaseUser(nextUser);
+      }
+      return nextUser;
+    });
+  };
+
   useEffect(() => {
     // Listen to authentication state changes
     const unsubscribe = authService.onAuthStateChanged((firebaseUser) => {
-      setUser(firebaseUser);
+      updateUserState(firebaseUser);
       setIsLoading(false);
     });
 
@@ -77,25 +98,25 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
     // Auth methods - wrapped to handle errors and state updates
     signInWithGoogle: async (): Promise<User> => {
       const firebaseUser = await authService.signInWithGoogle();
-      setUser(firebaseUser);
+      updateUserState(firebaseUser);
       return firebaseUser;
     },
 
     signInWithEmail: async (email: string, password: string): Promise<User> => {
       const firebaseUser = await authService.signInWithEmail(email, password);
-      setUser(firebaseUser);
+      updateUserState(firebaseUser);
       return firebaseUser;
     },
 
     createAccountWithEmail: async (email: string, password: string): Promise<User> => {
       const firebaseUser = await authService.createAccountWithEmail(email, password);
-      setUser(firebaseUser);
+      updateUserState(firebaseUser);
       return firebaseUser;
     },
 
     signOut: async (): Promise<void> => {
       await authService.signOut();
-      setUser(null);
+      updateUserState(null);
     },
 
     getIdToken: async (forceRefresh = false): Promise<string | null> => {
@@ -113,10 +134,16 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
 
     updateUserProfile: async (updates: { displayName?: string; photoURL?: string }): Promise<void> => {
       await authService.updateUserProfile(updates);
-      // Trigger a re-render by updating the user state
       const updatedUser = authService.getCurrentUser();
       if (updatedUser) {
-        setUser({ ...updatedUser });
+        if (typeof updatedUser.reload === 'function') {
+          try {
+            await updatedUser.reload();
+          } catch (error) {
+            console.warn('Failed to reload Firebase user after profile update', error);
+          }
+        }
+        updateUserState(updatedUser);
       }
     },
 

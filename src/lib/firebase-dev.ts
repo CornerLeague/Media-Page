@@ -25,7 +25,15 @@ interface MockUser extends Partial<User> {
 
 // Development user store
 let currentUser: MockUser | null = null;
-let authStateCallbacks: Array<(user: MockUser | null) => void> = [];
+const authStateCallbacks: Array<(user: MockUser | null) => void> = [];
+
+// Runtime flag that allows firebase.ts to force development auth when it
+// bootstraps a demo Firebase app after initialization failures.
+let developmentAuthOverride = false;
+
+export const enableDevelopmentAuthOverride = () => {
+  developmentAuthOverride = true;
+};
 
 // Mock authentication service for development
 export const devAuthService = {
@@ -217,9 +225,14 @@ export const devAuthService = {
 
 // Check if we should use development mode
 export const shouldUseDevelopmentAuth = (): boolean => {
-  return import.meta.env.DEV &&
-         import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true' &&
-         import.meta.env.VITE_FIREBASE_API_KEY === 'demo-key';
+  return (
+    developmentAuthOverride ||
+    (
+      import.meta.env.DEV &&
+      import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true' &&
+      import.meta.env.VITE_FIREBASE_API_KEY === 'demo-key'
+    )
+  );
 };
 
 // Development mode notice

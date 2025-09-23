@@ -5,7 +5,7 @@
  * configuration for the Corner League Media application.
  */
 
-import { initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   connectAuthEmulator,
@@ -25,7 +25,11 @@ import {
   User
 } from 'firebase/auth';
 import { getFirebaseErrorMessage } from './firebase-errors';
-import { devAuthService, shouldUseDevelopmentAuth } from './firebase-dev';
+import {
+  devAuthService,
+  enableDevelopmentAuthOverride,
+  shouldUseDevelopmentAuth,
+} from './firebase-dev';
 import {
   getFirestore,
   connectFirestoreEmulator,
@@ -74,21 +78,38 @@ if (missingEnvVars.length > 0) {
 
 // Initialize Firebase
 // For development with demo/invalid credentials, we'll rely on emulator mode
-let app;
-try {
-  app = initializeApp(firebaseConfig);
-} catch (error) {
-  console.warn('Firebase initialization failed with provided config:', error);
-  // For development, initialize with minimal config if emulator is enabled
-  if (import.meta.env.DEV && import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true') {
-    console.log('Initializing Firebase with demo project for emulator use');
-    app = initializeApp({
-      apiKey: 'demo-key',
-      authDomain: 'demo-project.firebaseapp.com',
-      projectId: 'demo-project',
-    });
-  } else {
-    throw error;
+let app: FirebaseApp;
+
+const existingApp = getApps()[0];
+
+if (existingApp) {
+  app = existingApp;
+  if (app.options.apiKey === 'demo-key') {
+    enableDevelopmentAuthOverride();
+  }
+} else {
+  try {
+    app = initializeApp(firebaseConfig);
+  } catch (error: any) {
+    console.warn('Firebase initialization failed with provided config:', error);
+    const shouldFallbackToDemo =
+      import.meta.env.DEV && import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true';
+
+    if (!shouldFallbackToDemo) {
+      if (error?.code === 'app/duplicate-app') {
+        app = getApp();
+      } else {
+        throw error;
+      }
+    } else {
+      console.log('Initializing Firebase with demo project for emulator use');
+      app = initializeApp({
+        apiKey: 'demo-key',
+        authDomain: 'demo-project.firebaseapp.com',
+        projectId: 'demo-project',
+      });
+      enableDevelopmentAuthOverride();
+    }
   }
 }
 
@@ -99,12 +120,15 @@ export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
 
 // Configure emulators for local development
+let hasConnectedAuthEmulator = (auth as any)?._canInitEmulator === false;
+
 if (import.meta.env.DEV && import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true') {
   try {
     // Check if already connected to avoid multiple connections
-    if (!auth.config.emulator) {
+    if (!hasConnectedAuthEmulator) {
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
       console.log('Connected to Firebase Auth emulator');
+      hasConnectedAuthEmulator = true;
     }
 
     // Connect to Firestore emulator - need to check if not already connected
@@ -228,6 +252,9 @@ export const authService = {
 
   // Password reset
   sendPasswordResetEmail: async (email: string): Promise<void> => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.sendPasswordResetEmail(email);
+    }
     try {
       await sendPasswordResetEmail(auth, email);
     } catch (error) {
@@ -237,6 +264,9 @@ export const authService = {
 
   // Email verification
   sendEmailVerification: async (): Promise<void> => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.sendEmailVerification();
+    }
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('No user is currently signed in');
@@ -248,6 +278,9 @@ export const authService = {
 
   // Update user profile
   updateUserProfile: async (updates: { displayName?: string; photoURL?: string }): Promise<void> => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.updateUserProfile(updates);
+    }
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('No user is currently signed in');
@@ -259,6 +292,9 @@ export const authService = {
 
   // Update password
   updateUserPassword: async (newPassword: string): Promise<void> => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.updateUserPassword(newPassword);
+    }
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('No user is currently signed in');
@@ -270,6 +306,9 @@ export const authService = {
 
   // Reauthenticate user
   reauthenticateWithPassword: async (password: string): Promise<void> => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.reauthenticateWithPassword(password);
+    }
     try {
       const user = auth.currentUser;
       if (!user || !user.email) throw new Error('No user is currently signed in');
@@ -283,11 +322,17 @@ export const authService = {
 
   // Check if email is verified
   isEmailVerified: (): boolean => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.isEmailVerified();
+    }
     return auth.currentUser?.emailVerified ?? false;
   },
 
   // Get user metadata
   getUserMetadata: () => {
+    if (shouldUseDevelopmentAuth()) {
+      return devAuthService.getUserMetadata();
+    }
     const user = auth.currentUser;
     if (!user) return null;
 

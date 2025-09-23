@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp.context7.com/mcp",
       "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-bc072f2a-7194-4395-90de-dd2a1b91d8af"
+        "CONTEXT7_API_KEY": "your-context7-api-key-here"
       }
     },
     "playwright": {
@@ -19,7 +19,7 @@
     "command": "npx",
     "args": ["ref-tools-mcp@latest"],
     "env": {
-      "REF_API_KEY": "ref-9f721ed2b142d201f7c0"
+      "REF_API_KEY": "your-ref-api-key-here"
     }
 },
 "semgrep": {
@@ -31,7 +31,7 @@
       "args": [
         "-y",
         "mcp-remote",
-        "https://mcp.exa.ai/mcp?exaApiKey=e848b895-f617-43a4-a88d-8dbe8c7e83e4"
+        "https://mcp.exa.ai/mcp?exaApiKey=your-exa-api-key-here"
       ]
     },
      "shadcn": {

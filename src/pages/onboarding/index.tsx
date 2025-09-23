@@ -33,8 +33,8 @@ function OnboardingStepRouter() {
 export function OnboardingRouter() {
   return (
     <Routes>
-      <Route path="/step/:step" element={<OnboardingStepRouter />} />
-      <Route path="*" element={<Navigate to="/onboarding/step/1" replace />} />
+      <Route path="step/:step" element={<OnboardingStepRouter />} />
+      <Route path="*" element={<Navigate to="step/1" replace />} />
     </Routes>
   );
 }

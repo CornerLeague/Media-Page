@@ -244,11 +244,27 @@ export function SportsSelectionStep() {
 
   const handleToggleSport = (sportId: string) => {
     setSports(prevSports => {
-      const currentSelected = prevSports.filter(s => s.isSelected);
       const targetSport = prevSports.find(s => s.id === sportId);
+      if (!targetSport) {
+        return prevSports;
+      }
 
-      // If trying to select and already at maximum (5), show warning
-      if (!targetSport?.isSelected && currentSelected.length >= 5) {
+      const orderedSelectedIds = prevSports
+        .map((sport, index) => ({ sport, index }))
+        .filter(({ sport }) => sport.isSelected)
+        .sort((a, b) => {
+          if (a.sport.rank && b.sport.rank) {
+            return a.sport.rank - b.sport.rank;
+          }
+          if (a.sport.rank) return -1;
+          if (b.sport.rank) return 1;
+          return a.index - b.index;
+        })
+        .map(({ sport }) => sport.id);
+
+      const isSelecting = !targetSport.isSelected;
+
+      if (isSelecting && orderedSelectedIds.length >= 5) {
         toast({
           title: "Maximum 5 Sports",
           description: "You can select a maximum of 5 sports. Please deselect one first.",
@@ -257,27 +273,18 @@ export function SportsSelectionStep() {
         return prevSports;
       }
 
+      let nextSelectedOrder = orderedSelectedIds.filter(id => id !== sportId);
+      if (isSelecting) {
+        nextSelectedOrder = [...nextSelectedOrder, sportId];
+      }
+
       return prevSports.map(sport => {
-        if (sport.id === sportId) {
-          const newIsSelected = !sport.isSelected;
-          // Re-rank selected sports
-          if (newIsSelected) {
-            const selectedSports = prevSports.filter(s => s.isSelected);
-            return { ...sport, isSelected: true, rank: selectedSports.length + 1 };
-          } else {
-            // Remove from selection and re-rank remaining
-            return { ...sport, isSelected: false, rank: 0 };
-          }
-        }
-        return sport;
-      }).map(sport => {
-        // Re-rank all selected sports
-        if (sport.isSelected) {
-          const selectedSports = prevSports.filter(s => s.isSelected || (s.id === sportId && !prevSports.find(ps => ps.id === sportId)?.isSelected));
-          const currentIndex = selectedSports.findIndex(s => s.id === sport.id);
-          return { ...sport, rank: currentIndex + 1 };
-        }
-        return sport;
+        const nextIndex = nextSelectedOrder.indexOf(sport.id);
+        return {
+          ...sport,
+          isSelected: nextIndex !== -1,
+          rank: nextIndex !== -1 ? nextIndex + 1 : 0,
+        };
       });
     });
   };
@@ -312,13 +319,37 @@ export function SportsSelectionStep() {
   };
 
   const handleSelectAll = () => {
-    setSports(prevSports =>
-      prevSports.map((sport, index) => ({
-        ...sport,
-        isSelected: true,
-        rank: index + 1,
-      }))
-    );
+    setSports(prevSports => {
+      const existingSelection = prevSports
+        .filter(sport => sport.isSelected)
+        .sort((a, b) => {
+          if (a.rank && b.rank) {
+            return a.rank - b.rank;
+          }
+          if (a.rank) return -1;
+          if (b.rank) return 1;
+          return 0;
+        })
+        .map(sport => sport.id);
+
+      const nextSelectedIds = [...existingSelection];
+
+      for (const sport of prevSports) {
+        if (nextSelectedIds.length >= 5) break;
+        if (!nextSelectedIds.includes(sport.id)) {
+          nextSelectedIds.push(sport.id);
+        }
+      }
+
+      return prevSports.map(sport => {
+        const index = nextSelectedIds.indexOf(sport.id);
+        return {
+          ...sport,
+          isSelected: index !== -1,
+          rank: index !== -1 ? index + 1 : 0,
+        };
+      });
+    });
   };
 
   const handleClearAll = () => {
@@ -332,13 +363,21 @@ export function SportsSelectionStep() {
   };
 
   const handleSelectPopular = () => {
-    setSports(prevSports =>
-      prevSports.map((sport, index) => ({
+    setSports(prevSports => {
+      const popularRanks = new Map<string, number>();
+
+      prevSports
+        .filter(sport => sport.isPopular)
+        .forEach((sport, index) => {
+          popularRanks.set(sport.id, index + 1);
+        });
+
+      return prevSports.map(sport => ({
         ...sport,
         isSelected: sport.isPopular,
-        rank: sport.isPopular ? index + 1 : 0,
-      }))
-    );
+        rank: popularRanks.get(sport.id) ?? 0,
+      }));
+    });
   };
 
   const handleContinue = async () => {
@@ -374,9 +413,6 @@ export function SportsSelectionStep() {
     // Navigate to next step
     navigate("/onboarding/step/3");
   };
-
-  const selectedSports = sports.filter(sport => sport.isSelected);
-  const sortedSelectedSports = selectedSports.sort((a, b) => a.rank - b.rank);
 
   if (isLoading && !activeSportsData.length) {
     return (
@@ -502,7 +538,7 @@ export function SportsSelectionStep() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={sortedSelectedSports.map(sport => sport.id)}
+              items={sports.map(sport => sport.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">

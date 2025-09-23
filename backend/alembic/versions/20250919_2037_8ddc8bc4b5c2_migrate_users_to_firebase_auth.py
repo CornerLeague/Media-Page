@@ -44,12 +44,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade database schema to use Firebase authentication."""
+    """PHASE 1: Add Firebase columns and structure (safe schema changes only).
 
-    # Step 1: Add new Firebase UID column
+    This is the first of a 3-phase migration to eliminate race conditions:
+    - Phase 1: Add columns and indexes (this migration)
+    - Phase 2: Data migration (separate script/migration)
+    - Phase 3: Apply constraints (separate migration)
+    """
+
+    # Step 1: Add new Firebase UID column as NULLABLE (safe)
     op.add_column('users', sa.Column('firebase_uid', sa.String(length=128), nullable=True))
 
-    # Step 2: Add new user profile columns
+    # Step 2: Add new user profile columns (all nullable - safe)
     op.add_column('users', sa.Column('first_name', sa.String(length=50), nullable=True))
     op.add_column('users', sa.Column('last_name', sa.String(length=50), nullable=True))
     op.add_column('users', sa.Column('bio', sa.Text(), nullable=True))
@@ -59,53 +65,71 @@ def upgrade() -> None:
     op.add_column('users', sa.Column('is_verified', sa.Boolean(), nullable=False, server_default='false'))
     op.add_column('users', sa.Column('email_verified_at', sa.DateTime(timezone=True), nullable=True))
 
-    # Step 3: Make email unique and indexed
+    # Step 3: Update email column to be nullable and add email index (safe)
     op.alter_column('users', 'email', existing_type=sa.String(255), nullable=True)
-    op.create_unique_constraint('uq_users_email', 'users', ['email'])
     op.create_index('idx_users_email', 'users', ['email'])
 
-    # Step 4: Add indexes for performance
+    # Step 4: Add performance indexes (safe - indexes don't affect data integrity)
     op.create_index('idx_users_firebase_uid', 'users', ['firebase_uid'])
     op.create_index('idx_users_is_active', 'users', ['is_active'])
     op.create_index('idx_users_last_active_at', 'users', ['last_active_at'])
 
-    # Step 5: Data migration placeholder - in production, you would:
-    # 1. Populate firebase_uid from clerk_user_id mapping
-    # 2. Verify all users have firebase_uid values
-    # 3. Then make firebase_uid NOT NULL and add unique constraint
+    # CRITICAL: DO NOT add constraints or drop columns in this phase
+    # The following operations are deferred to subsequent migrations:
+    #
+    # Phase 2 (Data Migration - separate process):
+    # - Populate firebase_uid from clerk_user_id mapping
+    # - Verify data integrity and completeness
+    # - Validate no NULL firebase_uid values exist
+    #
+    # Phase 3 (Constraint Application - separate migration):
+    # - op.alter_column('users', 'firebase_uid', nullable=False)
+    # - op.create_unique_constraint('uq_users_firebase_uid', 'users', ['firebase_uid'])
+    # - op.create_unique_constraint('uq_users_email', 'users', ['email'])
+    # - op.drop_constraint('users_clerk_user_id_key', 'users', type_='unique')
+    # - op.drop_column('users', 'clerk_user_id')
 
-    # For now, we'll add the constraints assuming data migration is complete
-    # In production, these would be separate migration steps after data migration
-
-    # Step 6: Make firebase_uid required and unique (after data migration)
-    # Note: In production, run data migration first, then these constraints in a separate migration
-    op.alter_column('users', 'firebase_uid', nullable=False)
-    op.create_unique_constraint('uq_users_firebase_uid', 'users', ['firebase_uid'])
-
-    # Step 7: Remove old clerk_user_id column (after confirming firebase_uid is populated)
-    op.drop_constraint('users_clerk_user_id_key', 'users', type_='unique')
-    op.drop_column('users', 'clerk_user_id')
+    print("✓ Phase 1 complete: Firebase schema structure added")
+    print("⚠ WARNING: Data migration required before applying constraints")
+    print("→ Next: Run data migration to populate firebase_uid values")
+    print("→ Then: Run Phase 3 migration to apply constraints and cleanup")
 
 
 def downgrade() -> None:
-    """Downgrade database schema to use Clerk authentication."""
+    """SAFE ROLLBACK: Remove Firebase schema additions (Phase 1 rollback only).
 
-    # Step 1: Re-add clerk_user_id column
-    op.add_column('users', sa.Column('clerk_user_id', sa.String(length=255), nullable=True))
+    This rollback is safe because it only removes the additions from Phase 1.
+    If Phase 2 (data migration) or Phase 3 (constraints) have been applied,
+    those must be rolled back first using their respective rollback procedures.
+    """
 
-    # Step 2: Data migration placeholder - in production:
-    # Populate clerk_user_id from firebase_uid mapping
+    # SAFETY CHECK: Verify we can safely rollback
+    # This migration should only be rolled back if:
+    # 1. Phase 3 constraints haven't been applied yet
+    # 2. Phase 2 data migration can be safely reversed
 
-    # Step 3: Make clerk_user_id required and unique
-    op.alter_column('users', 'clerk_user_id', nullable=False)
-    op.create_unique_constraint('users_clerk_user_id_key', 'users', ['clerk_user_id'])
+    # Step 1: Remove performance indexes (safe - these were added in Phase 1)
+    try:
+        op.drop_index('idx_users_last_active_at', 'users')
+    except Exception:
+        pass  # Index might not exist
 
-    # Step 4: Remove Firebase UID constraints and column
-    op.drop_constraint('uq_users_firebase_uid', 'users', type_='unique')
-    op.drop_index('idx_users_firebase_uid', 'users')
-    op.drop_column('users', 'firebase_uid')
+    try:
+        op.drop_index('idx_users_is_active', 'users')
+    except Exception:
+        pass  # Index might not exist
 
-    # Step 5: Remove new profile columns
+    try:
+        op.drop_index('idx_users_firebase_uid', 'users')
+    except Exception:
+        pass  # Index might not exist
+
+    try:
+        op.drop_index('idx_users_email', 'users')
+    except Exception:
+        pass  # Index might not exist
+
+    # Step 2: Remove new profile columns (safe - these were added as nullable)
     op.drop_column('users', 'email_verified_at')
     op.drop_column('users', 'is_verified')
     op.drop_column('users', 'timezone')
@@ -115,10 +139,21 @@ def downgrade() -> None:
     op.drop_column('users', 'last_name')
     op.drop_column('users', 'first_name')
 
-    # Step 6: Remove email constraints and indexes
-    op.drop_index('idx_users_email', 'users')
-    op.drop_constraint('uq_users_email', 'users', type_='unique')
+    # Step 3: Remove firebase_uid column (safe - was added as nullable)
+    op.drop_column('users', 'firebase_uid')
 
-    # Step 7: Remove other indexes
-    op.drop_index('idx_users_last_active_at', 'users')
-    op.drop_index('idx_users_is_active', 'users')
+    # NOTE: We do NOT attempt to restore clerk_user_id here because:
+    # 1. The original clerk_user_id column might have been dropped in Phase 3
+    # 2. We don't have the original clerk_user_id data to restore
+    # 3. This would create the same race condition we're trying to fix
+    #
+    # If you need to restore clerk_user_id functionality:
+    # 1. Create a separate migration to add clerk_user_id column
+    # 2. Run a data migration to populate clerk_user_id from firebase_uid mapping
+    # 3. Apply constraints in a third migration
+
+    print("✓ Phase 1 rollback complete: Firebase schema additions removed")
+    print("⚠ WARNING: clerk_user_id column not restored automatically")
+    print("→ If needed: Create separate migration to restore clerk_user_id")
+    print("→ Then: Run data migration to populate clerk_user_id values")
+    print("→ Finally: Apply clerk_user_id constraints in separate migration")

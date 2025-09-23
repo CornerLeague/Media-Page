@@ -552,14 +552,19 @@ async def run_migration():
     """
     migration = Phase6UserPersonalizationMigration()
 
-    async for session in get_async_session():
+    session_generator = get_async_session()
+    session = await session_generator.__anext__()
+    try:
+        await migration.upgrade(session)
+        print(f"Successfully applied {migration.migration_name}")
+    except Exception as e:
+        print(f"Migration failed: {e}")
+        raise
+    finally:
         try:
-            await migration.upgrade(session)
-            print(f"Successfully applied {migration.migration_name}")
-            break
-        except Exception as e:
-            print(f"Migration failed: {e}")
-            raise
+            await session_generator.__anext__()
+        except StopAsyncIteration:
+            pass
 
 
 async def rollback_migration():
@@ -568,14 +573,19 @@ async def rollback_migration():
     """
     migration = Phase6UserPersonalizationMigration()
 
-    async for session in get_async_session():
+    session_generator = get_async_session()
+    session = await session_generator.__anext__()
+    try:
+        await migration.downgrade(session)
+        print(f"Successfully rolled back {migration.migration_name}")
+    except Exception as e:
+        print(f"Rollback failed: {e}")
+        raise
+    finally:
         try:
-            await migration.downgrade(session)
-            print(f"Successfully rolled back {migration.migration_name}")
-            break
-        except Exception as e:
-            print(f"Rollback failed: {e}")
-            raise
+            await session_generator.__anext__()
+        except StopAsyncIteration:
+            pass
 
 
 if __name__ == "__main__":

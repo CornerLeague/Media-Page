@@ -35,7 +35,8 @@ describe('WelcomeStep', () => {
     renderWithProviders(<WelcomeStep />);
 
     expect(screen.getByText(/welcome/i)).toBeInTheDocument();
-    expect(screen.getByText(/get started/i)).toBeInTheDocument();
+    // Use more specific selector for button
+    expect(screen.getByRole('button', { name: /get started/i })).toBeInTheDocument();
   });
 
   it('shows onboarding layout with correct step', () => {

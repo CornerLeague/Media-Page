@@ -233,26 +233,72 @@ export interface HomeData {
   }>;
 }
 
+// Team Search API Types
+export interface TeamSearchParams {
+  query?: string;        // Search team name or market
+  sport_id?: string;     // UUID filter by sport
+  league_id?: string;    // UUID filter by league
+  market?: string;       // Filter by market/city
+  is_active?: boolean;   // Filter by active status (default: true)
+  page?: number;         // Page number (default: 1)
+  page_size?: number;    // Items per page (1-100, default: 20)
+}
+
+export interface Team {
+  id: string;
+  sport_id: string;
+  league_id: string;
+  name: string;           // "Lakers"
+  market: string;         // "Los Angeles"
+  slug: string;           // "los-angeles-lakers"
+  abbreviation: string;   // "LAL"
+  logo_url?: string;
+  primary_color?: string; // "#552583"
+  secondary_color?: string; // "#FDB927"
+  is_active: boolean;
+  sport_name: string;     // "Basketball"
+  league_name: string;    // "NBA"
+  display_name: string;   // "Los Angeles Lakers"
+  short_name: string;     // "LAL"
+}
+
+export interface TeamSearchResponse {
+  items: Team[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
 // Onboarding API Types
 export interface OnboardingSport {
   id: string;
   name: string;
-  icon: string;
-  hasTeams: boolean;
-  isPopular: boolean;
+  slug: string;
+  icon?: string;
+  icon_url?: string;
+  description?: string;
+  popularity_rank: number;   // Lower = more popular
+  is_active: boolean;
+  display_order: number;
+  has_teams: boolean;
 }
 
 export interface OnboardingTeam {
   id: string;
+  sport_id: string;
+  league_id: string;
   name: string;
   market: string;
-  sportId: string;
-  league: string;
-  logo?: string;
-  colors?: {
-    primary: string;
-    secondary: string;
-  };
+  display_name: string;
+  logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  sport_name: string;
+  league_name: string;
+  abbreviation: string;
+  is_active: boolean;
 }
 
 export interface OnboardingStatus {
@@ -494,6 +540,14 @@ export class ApiClient {
     return this.request<HomeData>('/me/home');
   }
 
+  // Team Search API Methods
+  async searchTeams(params?: TeamSearchParams): Promise<TeamSearchResponse> {
+    return this.request<TeamSearchResponse>('/teams/search', {
+      params: params as Record<string, string | number | boolean>,
+      skipAuth: true, // Team search is public
+    });
+  }
+
   // Onboarding API Methods
   async getOnboardingStatus(): Promise<OnboardingStatus> {
     return this.request<OnboardingStatus>('/onboarding/status');
@@ -507,12 +561,15 @@ export class ApiClient {
   }
 
   async getOnboardingSports(): Promise<OnboardingSport[]> {
-    return this.request<OnboardingSport[]>('/onboarding/sports');
+    return this.request<OnboardingSport[]>('/onboarding/sports', {
+      skipAuth: true, // Onboarding sports are public
+    });
   }
 
   async getOnboardingTeams(sportIds: string[]): Promise<OnboardingTeam[]> {
     return this.request<OnboardingTeam[]>('/onboarding/teams', {
       params: { sport_ids: sportIds.join(',') },
+      skipAuth: true, // Onboarding teams are public
     });
   }
 
@@ -623,6 +680,14 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
       queryFn: () => apiClient.getOnboardingTeams(sportIds),
       staleTime: 30 * 60 * 1000, // 30 minutes (static data)
       enabled: sportIds.length > 0,
+    }),
+
+    // Team search queries
+    searchTeams: (params?: TeamSearchParams) => ({
+      queryKey: ['teams', 'search', params],
+      queryFn: () => apiClient.searchTeams(params),
+      staleTime: 15 * 60 * 1000, // 15 minutes
+      enabled: false, // Enable manually for search
     }),
   };
 };

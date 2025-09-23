@@ -14,7 +14,6 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.tsx'],
-    css: true,
     reporters: ['verbose', 'json', 'html'],
     outputFile: {
       json: './test-results/vitest-report.json',
@@ -141,23 +140,25 @@ export default defineConfig({
     // Reporter configuration
     outputTruncateLength: process.env.CI ? 0 : 80,
 
-    // Environment variables for tests
-    env: {
-      NODE_ENV: 'test',
-      VITE_API_URL: 'http://localhost:8000',
-      // Add any other test-specific environment variables
+    // CSS handling in tests
+    css: {
+      modules: {
+        classNameStrategy: 'stable',
+      },
     },
 
-    // Mock configuration
-    deps: {
-      external: [
-        // External dependencies that should not be mocked
-        'react',
-        'react-dom',
-        '@testing-library/react',
-        '@testing-library/jest-dom',
-        '@testing-library/user-event',
-      ],
+    // Server configuration for external dependencies
+    server: {
+      deps: {
+        external: [
+          // External dependencies that should not be mocked
+          'react',
+          'react-dom',
+          '@testing-library/react',
+          '@testing-library/jest-dom',
+          '@testing-library/user-event',
+        ],
+      },
     },
 
     // Snapshot configuration
@@ -166,11 +167,12 @@ export default defineConfig({
       printBasicPrototype: true,
     },
 
-    // Custom matchers and utilities
-    globals: {
-      // Make test utilities available globally if needed
-      __TEST_TIMEOUT__: process.env.CI ? 20000 : 15000,
-      __BENCHMARK_ITERATIONS__: process.env.CI ? 100 : 10,
+    // Test environment globals
+    env: {
+      NODE_ENV: 'test',
+      VITE_API_URL: 'http://localhost:8000',
+      __TEST_TIMEOUT__: process.env.CI ? '20000' : '15000',
+      __BENCHMARK_ITERATIONS__: process.env.CI ? '100' : '10',
     },
 
     // Test categorization with custom test names
@@ -189,13 +191,6 @@ export default defineConfig({
 
     // Silent mode for CI
     silent: !!process.env.CI,
-
-    // CSS handling in tests
-    css: {
-      modules: {
-        classNameStrategy: 'stable',
-      },
-    },
   },
 
   // Extend esbuild options for test builds

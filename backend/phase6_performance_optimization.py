@@ -458,7 +458,7 @@ async def run_performance_optimization():
     """
     optimizer = Phase6PerformanceOptimizer()
 
-    async for session in get_async_session():
+    async with get_async_session() as session:
         try:
             await optimizer.apply_optimizations(session)
             print(f"Successfully applied {optimizer.optimizer_name}")
@@ -471,7 +471,6 @@ async def run_performance_optimization():
                 print(f"\n{name.upper()}:")
                 print(f"-- {query}")
 
-            break
         except Exception as e:
             print(f"Performance optimization failed: {e}")
             raise
@@ -490,7 +489,7 @@ async def refresh_materialized_views():
         "content_engagement_by_type",
     ]
 
-    async for session in get_async_session():
+    async with get_async_session() as session:
         try:
             for view in views:
                 await session.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view};"))
@@ -498,8 +497,8 @@ async def refresh_materialized_views():
 
             await session.commit()
             print("All materialized views refreshed successfully!")
-            break
         except Exception as e:
+            await session.rollback()
             print(f"Materialized view refresh failed: {e}")
             raise
 

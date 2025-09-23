@@ -38,6 +38,101 @@ interface SportItem extends OnboardingSport {
   rank: number;
 }
 
+/**
+ * Validate sport rankings for integrity
+ * Checks for duplicate ranks, missing ranks, and other inconsistencies
+ */
+function validateRankIntegrity(sports: SportItem[]): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+  const selectedSports = sports.filter(sport => sport.isSelected);
+
+  if (selectedSports.length === 0) {
+    return { isValid: true, errors: [] };
+  }
+
+  // Check for duplicate ranks
+  const ranks = selectedSports.map(sport => sport.rank);
+  const uniqueRanks = new Set(ranks);
+  if (ranks.length !== uniqueRanks.size) {
+    errors.push('Duplicate ranks detected');
+  }
+
+  // Check for invalid rank values
+  const invalidRanks = selectedSports.filter(sport =>
+    sport.rank <= 0 || sport.rank > selectedSports.length || !Number.isInteger(sport.rank)
+  );
+  if (invalidRanks.length > 0) {
+    errors.push('Invalid rank values detected');
+  }
+
+  // Check for missing ranks in sequence
+  const sortedRanks = [...ranks].sort((a, b) => a - b);
+  for (let i = 0; i < sortedRanks.length; i++) {
+    if (sortedRanks[i] !== i + 1) {
+      errors.push('Missing ranks in sequence');
+      break;
+    }
+  }
+
+  // Check that unselected sports have rank 0
+  const unselectedWithRank = sports.filter(sport => !sport.isSelected && sport.rank !== 0);
+  if (unselectedWithRank.length > 0) {
+    errors.push('Unselected sports have non-zero ranks');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Centralized utility function to normalize sport rankings
+ * Ensures selected sports have consecutive ranks starting from 1
+ * Preserves rank order for selected sports and sets rank to 0 for unselected
+ */
+function normalizeRanks(sports: SportItem[]): SportItem[] {
+  // First validate the current state
+  const validation = validateRankIntegrity(sports);
+  if (!validation.isValid) {
+    console.warn('Rank integrity issues detected before normalization:', validation.errors);
+  }
+
+  const selectedSports = sports.filter(sport => sport.isSelected);
+
+  // Sort selected sports by their current rank to preserve order
+  const sortedSelected = selectedSports.sort((a, b) => {
+    // Handle case where ranks might be 0 or invalid
+    if (a.rank === 0 && b.rank === 0) return 0;
+    if (a.rank === 0) return 1;
+    if (b.rank === 0) return -1;
+    return a.rank - b.rank;
+  });
+
+  const normalizedSports = sports.map(sport => {
+    if (!sport.isSelected) {
+      // Only create new object if rank actually needs to change
+      return sport.rank === 0 ? sport : { ...sport, rank: 0 };
+    }
+
+    const newRank = sortedSelected.findIndex(s => s.id === sport.id) + 1;
+    // Only create new object if rank actually needs to change
+    return sport.rank === newRank ? sport : { ...sport, rank: newRank };
+  });
+
+  // Validate the normalized result
+  const postValidation = validateRankIntegrity(normalizedSports);
+  if (!postValidation.isValid) {
+    console.error('Rank normalization failed - integrity issues remain:', postValidation.errors);
+    // In a production environment, you might want to throw an error or provide fallback logic
+  }
+
+  return normalizedSports;
+}
+
 interface SortableSportItemProps {
   sport: SportItem;
   onToggle: (sportId: string) => void;
@@ -110,9 +205,14 @@ function SortableSportItem({ sport, onToggle }: SortableSportItemProps) {
               data-drag-handle="true"
               className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded transition-colors"
               onClick={(e) => e.stopPropagation()}
-              title="Drag to reorder"
+              title={sport.isSelected ? "Drag to reorder" : "Drag to select and reorder"}
             >
-              <GripVertical className="h-5 w-5 text-muted-foreground" />
+              <GripVertical className={cn(
+                "h-5 w-5 transition-colors",
+                sport.isSelected
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground/60 hover:text-muted-foreground"
+              )} />
             </div>
 
             {/* Sport icon */}
@@ -225,7 +325,31 @@ export function SportsSelectionStep() {
         };
       });
 
-      setSports(sportsWithSelection);
+      // Sort sports to preserve user's rank preferences:
+      // 1. Selected sports sorted by rank (ascending)
+      // 2. Unselected sports in original API order
+      const sortedSports = [...sportsWithSelection].sort((a, b) => {
+        // If both are selected, sort by rank
+        if (a.isSelected && b.isSelected) {
+          return a.rank - b.rank;
+        }
+
+        // Selected sports come first
+        if (a.isSelected && !b.isSelected) {
+          return -1;
+        }
+
+        if (!a.isSelected && b.isSelected) {
+          return 1;
+        }
+
+        // For unselected sports, maintain original API order
+        const aOriginalIndex = activeSportsData.findIndex(s => s.id === a.id);
+        const bOriginalIndex = activeSportsData.findIndex(s => s.id === b.id);
+        return aOriginalIndex - bOriginalIndex;
+      });
+
+      setSports(sortedSports);
     }
   }, [activeSportsData]);
 
@@ -257,28 +381,44 @@ export function SportsSelectionStep() {
         return prevSports;
       }
 
-      return prevSports.map(sport => {
+      // Single atomic update: toggle selection state and normalize ranks
+      const updatedSports = prevSports.map(sport => {
         if (sport.id === sportId) {
           const newIsSelected = !sport.isSelected;
-          // Re-rank selected sports
           if (newIsSelected) {
-            const selectedSports = prevSports.filter(s => s.isSelected);
-            return { ...sport, isSelected: true, rank: selectedSports.length + 1 };
+            // Assign temporary rank that will be normalized
+            return { ...sport, isSelected: true, rank: currentSelected.length + 1 };
           } else {
-            // Remove from selection and re-rank remaining
+            // Remove from selection
             return { ...sport, isSelected: false, rank: 0 };
           }
         }
         return sport;
-      }).map(sport => {
-        // Re-rank all selected sports
-        if (sport.isSelected) {
-          const selectedSports = prevSports.filter(s => s.isSelected || (s.id === sportId && !prevSports.find(ps => ps.id === sportId)?.isSelected));
-          const currentIndex = selectedSports.findIndex(s => s.id === sport.id);
-          return { ...sport, rank: currentIndex + 1 };
-        }
-        return sport;
       });
+
+      // Apply rank normalization to ensure consistent consecutive ranks
+      const normalizedSports = normalizeRanks(updatedSports);
+
+      // Immediately save toggle changes to localStorage
+      try {
+        const selectedSportsData = normalizedSports
+          .filter(sport => sport.isSelected)
+          .map(sport => ({
+            sportId: sport.id,
+            rank: sport.rank,
+          }));
+
+        updateLocalOnboardingStep(2, { selectedSports: selectedSportsData });
+      } catch (error) {
+        console.warn('Failed to save toggle changes to localStorage:', error);
+        toast({
+          title: "Save Warning",
+          description: "Changes may not be preserved. Please try again.",
+          variant: "destructive",
+        });
+      }
+
+      return normalizedSports;
     });
   };
 
@@ -287,15 +427,46 @@ export function SportsSelectionStep() {
 
     if (over && active.id !== over.id) {
       setSports(items => {
-        const selectedSports = items.filter(sport => sport.isSelected);
+        const activeSport = items.find(sport => sport.id === active.id);
+        const overSport = items.find(sport => sport.id === over.id);
+
+        if (!activeSport || !overSport) {
+          return items;
+        }
+
+        // Auto-select the dragged sport if it's not already selected
+        let updatedItems = items;
+        if (!activeSport.isSelected) {
+          // Check if we can select more sports (max 5)
+          const currentSelected = items.filter(s => s.isSelected);
+          if (currentSelected.length >= 5) {
+            toast({
+              title: "Maximum 5 Sports",
+              description: "You can select a maximum of 5 sports. Please deselect one first.",
+              variant: "destructive",
+            });
+            return items;
+          }
+
+          // Auto-select the dragged sport
+          updatedItems = items.map(sport => {
+            if (sport.id === active.id) {
+              return { ...sport, isSelected: true, rank: currentSelected.length + 1 };
+            }
+            return sport;
+          });
+        }
+
+        // Now handle the reordering logic
+        const selectedSports = updatedItems.filter(sport => sport.isSelected);
         const oldIndex = selectedSports.findIndex(sport => sport.id === active.id);
         const newIndex = selectedSports.findIndex(sport => sport.id === over.id);
 
         if (oldIndex !== -1 && newIndex !== -1) {
           const newSelectedOrder = arrayMove(selectedSports, oldIndex, newIndex);
 
-          // Update ranks for reordered sports
-          const updatedItems = items.map(sport => {
+          // Update sports with new drag order, then normalize ranks
+          const finalItems = updatedItems.map(sport => {
             if (sport.isSelected) {
               const newRankIndex = newSelectedOrder.findIndex(s => s.id === sport.id);
               return { ...sport, rank: newRankIndex + 1 };
@@ -303,42 +474,149 @@ export function SportsSelectionStep() {
             return sport;
           });
 
-          return updatedItems;
+          // Apply normalization to ensure consistency
+          const normalizedItems = normalizeRanks(finalItems);
+
+          // Immediately save changes to localStorage after drag operation
+          try {
+            const selectedSportsData = normalizedItems
+              .filter(sport => sport.isSelected)
+              .map(sport => ({
+                sportId: sport.id,
+                rank: sport.rank,
+              }));
+
+            updateLocalOnboardingStep(2, { selectedSports: selectedSportsData });
+          } catch (error) {
+            console.warn('Failed to save drag changes to localStorage:', error);
+            toast({
+              title: "Save Warning",
+              description: "Changes may not be preserved. Please try again.",
+              variant: "destructive",
+            });
+          }
+
+          return normalizedItems;
         }
 
-        return items;
+        // If we auto-selected but couldn't reorder, still apply normalization and save
+        const normalizedItems = normalizeRanks(updatedItems);
+
+        // Save auto-selection to localStorage
+        try {
+          const selectedSportsData = normalizedItems
+            .filter(sport => sport.isSelected)
+            .map(sport => ({
+              sportId: sport.id,
+              rank: sport.rank,
+            }));
+
+          updateLocalOnboardingStep(2, { selectedSports: selectedSportsData });
+        } catch (error) {
+          console.warn('Failed to save auto-selection to localStorage:', error);
+        }
+
+        return normalizedItems;
       });
     }
   };
 
   const handleSelectAll = () => {
-    setSports(prevSports =>
-      prevSports.map((sport, index) => ({
+    setSports(prevSports => {
+      const updatedSports = prevSports.map(sport => ({
         ...sport,
         isSelected: true,
-        rank: index + 1,
-      }))
-    );
+        rank: sport.rank || 1, // Preserve existing rank or default to 1
+      }));
+
+      // Use normalizeRanks to ensure proper consecutive ranking
+      const normalizedSports = normalizeRanks(updatedSports);
+
+      // Immediately save changes to localStorage
+      try {
+        const selectedSportsData = normalizedSports
+          .filter(sport => sport.isSelected)
+          .map(sport => ({
+            sportId: sport.id,
+            rank: sport.rank,
+          }));
+
+        updateLocalOnboardingStep(2, { selectedSports: selectedSportsData });
+      } catch (error) {
+        console.warn('Failed to save select all changes to localStorage:', error);
+      }
+
+      return normalizedSports;
+    });
   };
 
   const handleClearAll = () => {
-    setSports(prevSports =>
-      prevSports.map(sport => ({
+    setSports(prevSports => {
+      const updatedSports = prevSports.map(sport => ({
         ...sport,
         isSelected: false,
         rank: 0,
-      }))
-    );
+      }));
+
+      // Use normalizeRanks for consistency (though all ranks will be 0)
+      const normalizedSports = normalizeRanks(updatedSports);
+
+      // Immediately save changes to localStorage
+      try {
+        const selectedSportsData = normalizedSports
+          .filter(sport => sport.isSelected)
+          .map(sport => ({
+            sportId: sport.id,
+            rank: sport.rank,
+          }));
+
+        updateLocalOnboardingStep(2, { selectedSports: selectedSportsData });
+      } catch (error) {
+        console.warn('Failed to save clear all changes to localStorage:', error);
+      }
+
+      return normalizedSports;
+    });
   };
 
   const handleSelectPopular = () => {
-    setSports(prevSports =>
-      prevSports.map((sport, index) => ({
-        ...sport,
-        isSelected: sport.isPopular,
-        rank: sport.isPopular ? index + 1 : 0,
-      }))
-    );
+    setSports(prevSports => {
+      // First, select all popular sports and give them priority ranking
+      const updatedSports = prevSports.map(sport => {
+        if (sport.isPopular) {
+          return {
+            ...sport,
+            isSelected: true,
+            rank: 1, // Will be properly ranked by normalizeRanks
+          };
+        } else {
+          return {
+            ...sport,
+            isSelected: false,
+            rank: 0,
+          };
+        }
+      });
+
+      // Use normalizeRanks to ensure proper consecutive ranking for popular sports
+      const normalizedSports = normalizeRanks(updatedSports);
+
+      // Immediately save changes to localStorage
+      try {
+        const selectedSportsData = normalizedSports
+          .filter(sport => sport.isSelected)
+          .map(sport => ({
+            sportId: sport.id,
+            rank: sport.rank,
+          }));
+
+        updateLocalOnboardingStep(2, { selectedSports: selectedSportsData });
+      } catch (error) {
+        console.warn('Failed to save select popular changes to localStorage:', error);
+      }
+
+      return normalizedSports;
+    });
   };
 
   const handleContinue = async () => {
@@ -467,7 +745,7 @@ export function SportsSelectionStep() {
         {/* Instructions */}
         <div className="text-center space-y-4">
           <p className="text-lg font-body text-muted-foreground">
-            Choose your favorite sports and drag to reorder them by preference.
+            Click to select sports or drag them to select and reorder by preference.
           </p>
 
           {/* Action buttons */}
@@ -502,7 +780,7 @@ export function SportsSelectionStep() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={sortedSelectedSports.map(sport => sport.id)}
+              items={sports.map(sport => sport.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
@@ -519,11 +797,13 @@ export function SportsSelectionStep() {
         </div>
 
         {/* Tip */}
-        {selectedCount > 1 && (
+        {selectedCount > 0 && (
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-sm text-blue-800 dark:text-blue-200 font-body">
-              <strong>Tip:</strong> Drag sports up or down to rank them by your interest level.
-              Your #1 choice will get priority in your personalized feed.
+              <strong>Tip:</strong> {selectedCount === 1
+                ? "Select more sports and drag to rank them by your interest level."
+                : "Drag sports up or down to rank them by your interest level."
+              } Your #1 choice will get priority in your personalized feed.
             </p>
           </div>
         )}

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { TEST_TIMEOUTS } from '../test-setup';
+import { TEST_TIMEOUTS } from '../utils/test-timeouts';
 import {
   SmartContentWaiter,
   ElementWaiter,

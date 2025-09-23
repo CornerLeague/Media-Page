@@ -2,28 +2,19 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/use-toast";
-import { AlertCircle, Star } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { OnboardingLayout } from "./OnboardingLayout";
-import { createApiQueryClient, type OnboardingTeam, apiClient } from "@/lib/api-client";
+import { TeamSelector } from "@/components/TeamSelector";
+import { createApiQueryClient, type Team, type OnboardingTeam, apiClient } from "@/lib/api-client";
 import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { updateLocalOnboardingStep, getLocalOnboardingStatus } from "@/lib/onboarding-storage";
-import { cn } from "@/lib/utils";
-
-interface TeamWithSelection extends OnboardingTeam {
-  isSelected: boolean;
-  affinityScore: number;
-}
 
 export function TeamSelectionStep() {
   const navigate = useNavigate();
   const { isAuthenticated, getIdToken, user } = useFirebaseAuth();
 
-  const [teams, setTeams] = useState<TeamWithSelection[]>([]);
-  const [selectedCount, setSelectedCount] = useState(0);
+  const [selectedTeams, setSelectedTeams] = useState<Team[]>([]);
   const [isApiAvailable, setIsApiAvailable] = useState(true);
 
   // Get previously selected sports from localStorage
@@ -36,126 +27,26 @@ export function TeamSelectionStep() {
     isAuthenticated ? { getIdToken, isAuthenticated: true, userId: user?.uid } : undefined
   );
 
-  // Fetch teams data with fallback
-  const {
-    data: teamsData,
-    isLoading,
-    error,
-  } = useQuery({
-    ...queryConfigs.getOnboardingTeams(sportIds),
-    retry: 2,
-    retryDelay: 1000,
-    enabled: sportIds.length > 0,
-  });
-
-  // Track API availability
+  // Load previous team selections from localStorage
   useEffect(() => {
-    if (error) {
-      setIsApiAvailable(false);
-      console.warn('Teams API unavailable, using fallback data:', error);
-      toast({
-        title: "Working Offline",
-        description: "Using offline mode. Your progress will be saved.",
-        variant: "default",
-      });
-    }
-  }, [error]);
+    const previousSelections = localStatus?.selectedTeams || [];
 
-  // Fallback team data based on popular teams from selected sports
-  const getFallbackTeams = (): OnboardingTeam[] => {
-    const fallbackTeams: OnboardingTeam[] = [];
+    // Convert stored team data back to Team objects if available
+    // For now, we'll start fresh with the new selector
+    // In production, you might want to restore from a proper teams API call
+    setSelectedTeams([]);
+  }, [localStatus]);
 
-    selectedSports.forEach(sport => {
-      switch (sport.sportId) {
-        case 'nfl':
-          fallbackTeams.push(
-            { id: 'chiefs', name: 'Kansas City Chiefs', market: 'Kansas City', sportId: 'nfl', league: 'NFL', logo: '🏈' },
-            { id: 'cowboys', name: 'Dallas Cowboys', market: 'Dallas', sportId: 'nfl', league: 'NFL', logo: '🏈' },
-            { id: 'patriots', name: 'New England Patriots', market: 'New England', sportId: 'nfl', league: 'NFL', logo: '🏈' },
-          );
-          break;
-        case 'nba':
-          fallbackTeams.push(
-            { id: 'lakers', name: 'Los Angeles Lakers', market: 'Los Angeles', sportId: 'nba', league: 'NBA', logo: '🏀' },
-            { id: 'warriors', name: 'Golden State Warriors', market: 'Golden State', sportId: 'nba', league: 'NBA', logo: '🏀' },
-            { id: 'celtics', name: 'Boston Celtics', market: 'Boston', sportId: 'nba', league: 'NBA', logo: '🏀' },
-          );
-          break;
-        case 'mlb':
-          fallbackTeams.push(
-            { id: 'yankees', name: 'New York Yankees', market: 'New York', sportId: 'mlb', league: 'MLB', logo: '⚾' },
-            { id: 'dodgers', name: 'Los Angeles Dodgers', market: 'Los Angeles', sportId: 'mlb', league: 'MLB', logo: '⚾' },
-            { id: 'red-sox', name: 'Boston Red Sox', market: 'Boston', sportId: 'mlb', league: 'MLB', logo: '⚾' },
-          );
-          break;
-        case 'nhl':
-          fallbackTeams.push(
-            { id: 'rangers', name: 'New York Rangers', market: 'New York', sportId: 'nhl', league: 'NHL', logo: '🏒' },
-            { id: 'bruins', name: 'Boston Bruins', market: 'Boston', sportId: 'nhl', league: 'NHL', logo: '🏒' },
-            { id: 'blackhawks', name: 'Chicago Blackhawks', market: 'Chicago', sportId: 'nhl', league: 'NHL', logo: '🏒' },
-          );
-          break;
-      }
-    });
-
-    return fallbackTeams;
-  };
-
-  // Use API data if available, otherwise use fallback
-  const activeTeamsData = teamsData || getFallbackTeams();
-
-  // Initialize teams state when data loads
-  useEffect(() => {
-    if (activeTeamsData.length > 0) {
-      // Try to restore previous selections from localStorage
-      const previousSelections = localStatus?.selectedTeams || [];
-
-      const teamsWithSelection = activeTeamsData.map(team => {
-        const previousSelection = previousSelections.find(t => t.teamId === team.id);
-        return {
-          ...team,
-          isSelected: !!previousSelection,
-          affinityScore: previousSelection?.affinityScore || 5, // Default affinity
-        };
-      });
-
-      setTeams(teamsWithSelection);
-    }
-  }, [activeTeamsData, localStatus]);
-
-  // Update selected count
-  useEffect(() => {
-    setSelectedCount(teams.filter(team => team.isSelected).length);
-  }, [teams]);
-
-  const handleToggleTeam = (teamId: string) => {
-    setTeams(prev =>
-      prev.map(team =>
-        team.id === teamId
-          ? { ...team, isSelected: !team.isSelected }
-          : team
-      )
-    );
-  };
-
-  const handleAffinityChange = (teamId: string, affinity: number) => {
-    setTeams(prev =>
-      prev.map(team =>
-        team.id === teamId
-          ? { ...team, affinityScore: affinity }
-          : team
-      )
-    );
+  const handleTeamSelect = (teams: Team[]) => {
+    setSelectedTeams(teams);
   };
 
   const handleContinue = async () => {
-    const selectedTeams = teams.filter(team => team.isSelected);
-
-    // Convert to API format
+    // Convert to API format for storage
     const teamsData = selectedTeams.map(team => ({
       teamId: team.id,
-      sportId: team.sportId,
-      affinityScore: team.affinityScore,
+      sportId: team.sport_id,
+      affinityScore: 0.8, // Default affinity score
     }));
 
     // Always save to localStorage first
@@ -171,6 +62,7 @@ export function TeamSelectionStep() {
         console.log('Team selection saved to API');
       } catch (error) {
         console.warn('Failed to save teams to API, continuing with localStorage:', error);
+        setIsApiAvailable(false);
         toast({
           title: "Saved Offline",
           description: "Your team selection has been saved locally.",
@@ -181,24 +73,6 @@ export function TeamSelectionStep() {
 
     navigate("/onboarding/step/4");
   };
-
-  // Show loading state
-  if (isLoading && !activeTeamsData.length) {
-    return (
-      <OnboardingLayout
-        step={3}
-        totalSteps={5}
-        title="Select Your Teams"
-        subtitle="Loading teams..."
-        showProgress={true}
-        completedSteps={2}
-      >
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </OnboardingLayout>
-    );
-  }
 
   // Show message if no sports selected
   if (sportIds.length === 0) {
@@ -232,7 +106,7 @@ export function TeamSelectionStep() {
       showProgress={true}
       completedSteps={2}
       onNext={handleContinue}
-      isNextDisabled={selectedCount === 0}
+      isNextDisabled={selectedTeams.length === 0}
     >
       <div className="space-y-6">
         {/* Offline indicator */}
@@ -253,92 +127,49 @@ export function TeamSelectionStep() {
         )}
 
         {/* Instructions */}
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <p className="text-lg font-body text-muted-foreground">
-            Select teams from your chosen sports to personalize your content feed.
+            Search and select teams from your chosen sports to personalize your content feed.
           </p>
+          <div className="text-sm text-muted-foreground">
+            Selected sports: {selectedSports.map(s => s.sportId.toUpperCase()).join(', ')}
+          </div>
         </div>
 
-        {/* Teams list grouped by sport */}
-        <div className="space-y-6">
-          {selectedSports.map(sport => {
-            const sportTeams = teams.filter(team => team.sportId === sport.sportId);
-
-            if (sportTeams.length === 0) return null;
-
-            return (
-              <div key={sport.sportId} className="space-y-3">
-                <h3 className="font-display font-bold text-lg capitalize">
-                  {sport.sportId.toUpperCase()} Teams
-                </h3>
-                <div className="grid gap-3">
-                  {sportTeams.map(team => (
-                    <Card
-                      key={team.id}
-                      className={cn(
-                        "hover:shadow-md transition-all duration-200",
-                        team.isSelected && "ring-2 ring-primary bg-primary/5"
-                      )}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="text-2xl">{team.logo || '🏆'}</div>
-                          <div className="flex-1">
-                            <h4 className="font-display font-semibold">{team.name}</h4>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">{team.league}</Badge>
-                              {team.market && (
-                                <Badge variant="outline">{team.market}</Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {team.isSelected && (
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map(rating => (
-                                  <button
-                                    key={rating}
-                                    onClick={() => handleAffinityChange(team.id, rating)}
-                                    className={cn(
-                                      "w-4 h-4 transition-colors",
-                                      rating <= team.affinityScore
-                                        ? "text-yellow-400"
-                                        : "text-gray-300"
-                                    )}
-                                  >
-                                    <Star className="w-full h-full fill-current" />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            <Checkbox
-                              checked={team.isSelected}
-                              onCheckedChange={() => handleToggleTeam(team.id)}
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+        {/* Team Selector Component */}
+        <div className="max-w-2xl mx-auto">
+          <TeamSelector
+            selectedTeams={selectedTeams}
+            onTeamSelect={handleTeamSelect}
+            sportIds={sportIds}
+            multiSelect={true}
+            placeholder="Select your favorite teams..."
+            searchPlaceholder="Search for teams..."
+            maxSelections={10}
+          />
         </div>
 
-        {/* Status */}
-        <div className="text-center">
-          <span className="font-display font-semibold text-primary">
-            {selectedCount} teams selected
-          </span>
-        </div>
+        {/* Status and tips */}
+        {selectedTeams.length > 0 && (
+          <div className="text-center space-y-4">
+            <div className="font-display font-semibold text-primary">
+              {selectedTeams.length} team{selectedTeams.length === 1 ? '' : 's'} selected
+            </div>
 
-        {/* Tip */}
-        {selectedCount > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-200 font-body">
-              <strong>Tip:</strong> Use the star rating to indicate how much you follow each team.
-              Higher ratings will prioritize that team's content in your feed.
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-2xl mx-auto">
+              <p className="text-sm text-blue-800 dark:text-blue-200 font-body">
+                <strong>Great choice!</strong> Your selected teams will be used to personalize your content feed and dashboard.
+                You can always change your team preferences later in settings.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Help text */}
+        {selectedTeams.length === 0 && (
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Start typing to search for teams, or browse teams from your selected sports.
             </p>
           </div>
         )}

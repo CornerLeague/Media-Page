@@ -359,6 +359,7 @@ class PreferenceService:
             return result.scalar_one_or_none() is not None
         except Exception as e:
             logger.error(f"Error validating sport {sport_id}: {str(e)}")
+            # Note: Session cleanup is handled by FastAPI dependency injection
             return False
 
     async def validate_team_exists(self, team_id: UUID) -> bool:
@@ -379,4 +380,5 @@ class PreferenceService:
             return result.scalar_one_or_none() is not None
         except Exception as e:
             logger.error(f"Error validating team {team_id}: {str(e)}")
+            # Note: Session cleanup is handled by FastAPI dependency injection
             return False

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -36,21 +36,58 @@ export function OnboardingLayout({
   const navigate = useNavigate();
   const progressPercentage = (step / totalSteps) * 100;
 
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else if (step > 1) {
-      navigate(`/onboarding/step/${step - 1}`);
-    }
-  };
+  // Navigation state management to prevent race conditions
+  const [isNavigating, setIsNavigating] = useState(false);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleNext = () => {
-    if (onNext) {
-      onNext();
-    } else if (step < totalSteps) {
-      navigate(`/onboarding/step/${step + 1}`);
+  // Debounced navigation handler to prevent rapid consecutive calls
+  const debounceNavigation = useCallback((navigationFn: () => void) => {
+    if (isNavigating) return;
+
+    setIsNavigating(true);
+
+    // Clear any existing timeout
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
     }
-  };
+
+    // Execute navigation immediately
+    navigationFn();
+
+    // Reset navigation state after a short delay to prevent rapid re-navigation
+    navigationTimeoutRef.current = setTimeout(() => {
+      setIsNavigating(false);
+    }, 300);
+  }, [isNavigating]);
+
+  const handleBack = useCallback(() => {
+    debounceNavigation(() => {
+      if (onBack) {
+        onBack();
+      } else if (step > 1) {
+        navigate(`/onboarding/step/${step - 1}`);
+      }
+    });
+  }, [debounceNavigation, onBack, step, navigate]);
+
+  const handleNext = useCallback(() => {
+    debounceNavigation(() => {
+      if (onNext) {
+        onNext();
+      } else if (step < totalSteps) {
+        navigate(`/onboarding/step/${step + 1}`);
+      }
+    });
+  }, [debounceNavigation, onNext, step, totalSteps, navigate]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,6 +145,7 @@ export function OnboardingLayout({
               <Button
                 variant="outline"
                 onClick={handleBack}
+                disabled={isNavigating}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -120,7 +158,7 @@ export function OnboardingLayout({
             {step < totalSteps && (
               <Button
                 onClick={handleNext}
-                disabled={isNextDisabled}
+                disabled={isNextDisabled || isNavigating}
                 className="flex items-center gap-2 ml-auto"
               >
                 {nextLabel}

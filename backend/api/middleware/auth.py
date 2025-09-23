@@ -15,11 +15,36 @@ from fastapi.requests import Request
 from pydantic import BaseModel
 
 from backend.api.schemas.auth import FirebaseUser
+from backend.config import get_firebase_config
 
 logger = logging.getLogger(__name__)
 
 # Firebase Admin SDK initialization
 _firebase_app: Optional[firebase_admin.App] = None
+
+
+def _strtobool(value: str) -> bool:
+    """Convert common truthy string values to boolean."""
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def are_mock_tokens_allowed() -> bool:
+    """Determine if mock Firebase tokens are permitted."""
+    env_override = os.getenv("ALLOW_FIREBASE_MOCK_TOKENS")
+    if env_override is not None:
+        return _strtobool(env_override)
+
+    try:
+        config = get_firebase_config()
+    except Exception as exc:  # pragma: no cover - fallback path
+        logger.debug("Unable to load Firebase config for mock token check: %s", exc)
+        return False
+
+    return bool(
+        getattr(config, "allow_mock_tokens", False)
+        or getattr(config, "bypass_auth_in_development", False)
+        or getattr(config, "use_emulator", False)
+    )
 
 
 class AuthError(HTTPException):
@@ -178,6 +203,7 @@ class FirebaseJWTMiddleware:
 
         # Additional token format checks
         token = token.strip()
+        mock_tokens_allowed = are_mock_tokens_allowed()
 
         # Check for basic JWT structure (header.payload.signature)
         # Skip JWT structure check for test tokens and development tokens
@@ -187,7 +213,7 @@ class FirebaseJWTMiddleware:
             token == "invalid_token" or
             token == "expired_token" or
             token == "revoked_token" or
-            token.startswith("mock-firebase-token-")  # Development mode tokens
+            token.startswith("mock-firebase-token-")
         )
 
         if not is_test_token and token.count('.') != 2:
@@ -208,6 +234,15 @@ class FirebaseJWTMiddleware:
         try:
             # Handle development mode tokens
             if token.startswith("mock-firebase-token-"):
+                if not mock_tokens_allowed:
+                    return TokenValidationResult(
+                        is_valid=False,
+                        error_code="INVALID_TOKEN",
+                        error_message=(
+                            "Mock Firebase tokens are disabled. Enable ALLOW_FIREBASE_MOCK_TOKENS "
+                            "or emulator mode for local development."
+                        )
+                    )
                 # Create a mock user for development
                 firebase_user = FirebaseUser(
                     uid='dev-user-mock',

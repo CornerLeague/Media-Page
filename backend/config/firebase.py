@@ -67,6 +67,12 @@ class FirebaseConfig(BaseSettings):
         description="Bypass authentication in development (DANGEROUS - only for local dev)"
     )
 
+    allow_mock_tokens: bool = Field(
+        default=False,
+        env="ALLOW_FIREBASE_MOCK_TOKENS",
+        description="Allow mock Firebase tokens for local development scenarios"
+    )
+
     model_config = {
         "env_file": ".env",
         "case_sensitive": False,

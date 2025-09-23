@@ -6,6 +6,7 @@ import pytest
 import os
 from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any
+from types import SimpleNamespace
 
 import firebase_admin
 from firebase_admin import auth
@@ -182,6 +183,61 @@ class TestFirebaseJWTMiddleware:
 
             assert not result.is_valid
             assert result.error_code == "SERVICE_UNAVAILABLE"
+
+    @pytest.mark.asyncio
+    async def test_mock_token_rejected_when_not_allowed(self, middleware, monkeypatch):
+        """Mock Firebase tokens should be rejected when not explicitly allowed."""
+        monkeypatch.delenv("ALLOW_FIREBASE_MOCK_TOKENS", raising=False)
+
+        config = SimpleNamespace(
+            allow_mock_tokens=False,
+            bypass_auth_in_development=False,
+            use_emulator=False
+        )
+
+        with patch('backend.api.middleware.auth.get_firebase_config', return_value=config):
+            with patch('firebase_admin.auth.verify_id_token') as mock_verify:
+                result = await middleware.validate_token("mock-firebase-token-local")
+
+        assert not result.is_valid
+        assert result.error_code == "INVALID_TOKEN"
+        assert "mock firebase tokens are disabled" in (result.error_message or "").lower()
+        mock_verify.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_mock_token_allowed_when_flag_enabled(self, middleware, monkeypatch):
+        """Mock Firebase tokens should be accepted when the opt-in flag is enabled."""
+        monkeypatch.delenv("ALLOW_FIREBASE_MOCK_TOKENS", raising=False)
+
+        config = SimpleNamespace(
+            allow_mock_tokens=True,
+            bypass_auth_in_development=False,
+            use_emulator=False
+        )
+
+        with patch('backend.api.middleware.auth.get_firebase_config', return_value=config):
+            with patch('firebase_admin.auth.verify_id_token') as mock_verify:
+                result = await middleware.validate_token("mock-firebase-token-local")
+
+        assert result.is_valid
+        assert result.firebase_user is not None
+        assert result.firebase_user.uid == "dev-user-mock"
+        mock_verify.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_mock_token_allowed_with_env_override(self, middleware, monkeypatch):
+        """Environment flag alone should permit mock Firebase tokens."""
+        monkeypatch.setenv("ALLOW_FIREBASE_MOCK_TOKENS", "true")
+
+        with patch('backend.api.middleware.auth.get_firebase_config') as mock_config:
+            mock_config.side_effect = RuntimeError("config unavailable")
+            with patch('firebase_admin.auth.verify_id_token') as mock_verify:
+                result = await middleware.validate_token("mock-firebase-token-local")
+
+        assert result.is_valid
+        assert result.firebase_user is not None
+        assert result.firebase_user.uid == "dev-user-mock"
+        mock_verify.assert_not_called()
 
 
 class TestFirebaseAuthRequired:

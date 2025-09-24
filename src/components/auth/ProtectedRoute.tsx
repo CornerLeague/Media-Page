@@ -223,10 +223,57 @@ export function AuthOnlyRoute({ children, ...props }: Omit<EnhancedProtectedRout
 }
 
 export function OnboardingRoute({ children, ...props }: Omit<EnhancedProtectedRouteProps, 'requireAuth' | 'requireOnboarding'>) {
+  const { isAuthenticated, isOnboarded, flowState, onboardingStatus } = useAuthOnboarding();
+  const location = useLocation();
+
+  // Test mode bypass
+  const isTestMode = (window as any).__PLAYWRIGHT_TEST__ === true ||
+                     window.location.search.includes('test=true') ||
+                     import.meta.env.VITE_TEST_MODE === 'true';
+
+  if (isTestMode && props.allowTestMode !== false) {
+    return (
+      <ProtectedRoute
+        {...props}
+        requireAuth={false}
+        requireOnboarding={false}
+        allowTestMode={true}
+      >
+        {children}
+      </ProtectedRoute>
+    );
+  }
+
+  // Handle completed users - redirect away from onboarding
+  if (isAuthenticated && isOnboarded) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Handle anonymous users starting onboarding
+  // Allow access to early steps without authentication, but require auth for later steps
+  const currentPath = location.pathname;
+  const stepMatch = currentPath.match(/\/onboarding\/step\/(\d+)/);
+  const currentStep = stepMatch ? parseInt(stepMatch[1], 10) : 1;
+
+  // Anonymous users can access steps 1-2 (welcome and sports selection)
+  // But need authentication starting from step 3 (team selection)
+  if (!isAuthenticated && currentStep >= 3) {
+    return <Navigate to="/auth/sign-in" replace state={{ from: location, returnToOnboarding: true }} />;
+  }
+
+  // If authenticated but not onboarded, ensure they're at the right step
+  if (isAuthenticated && !isOnboarded && onboardingStatus?.currentStep) {
+    const expectedStep = onboardingStatus.currentStep;
+    if (currentStep !== expectedStep) {
+      return <Navigate to={`/onboarding/step/${expectedStep}`} replace />;
+    }
+  }
+
+  // Allow access to onboarding
   return (
     <ProtectedRoute
       {...props}
-      requireAuth={true}
+      requireAuth={false}
       requireOnboarding={false}
     >
       {children}

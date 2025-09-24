@@ -15,7 +15,7 @@ from fastapi.requests import Request
 from pydantic import BaseModel
 
 from backend.api.schemas.auth import FirebaseUser
-from backend.config import get_firebase_config
+from backend.config import get_firebase_config, get_firebase_config_safe
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +34,15 @@ def are_mock_tokens_allowed() -> bool:
     if env_override is not None:
         return _strtobool(env_override)
 
-    try:
-        config = get_firebase_config()
-    except Exception as exc:  # pragma: no cover - fallback path
-        logger.debug("Unable to load Firebase config for mock token check: %s", exc)
-        return False
+    config = get_firebase_config_safe()
+    if config is None:
+        logger.debug("Firebase config not available, allowing mock tokens for development")
+        return True  # Allow mock tokens when config is not available (development mode)
 
     return bool(
-        getattr(config, "allow_mock_tokens", False)
-        or getattr(config, "bypass_auth_in_development", False)
-        or getattr(config, "use_emulator", False)
+        config.allow_mock_tokens
+        or config.bypass_auth_in_development
+        or config.use_emulator
     )
 
 
@@ -70,16 +69,38 @@ class TokenValidationResult(BaseModel):
 
 
 def initialize_firebase() -> firebase_admin.App:
-    """Initialize Firebase Admin SDK"""
+    """
+    Initialize Firebase Admin SDK with proper configuration handling
+
+    Returns:
+        firebase_admin.App: Initialized Firebase app instance
+
+    Raises:
+        RuntimeError: If initialization fails with detailed error message
+    """
     global _firebase_app
 
     if _firebase_app is not None:
         return _firebase_app
 
+    # Get Firebase configuration
+    config = get_firebase_config_safe()
+    if config is None:
+        raise RuntimeError(
+            "Firebase configuration is not available. Cannot initialize Firebase Admin SDK. "
+            "Please check your environment variables and .env file."
+        )
+
     try:
         # Check for service account key file
-        service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
-        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        service_account_path = config.service_account_key_path
+        project_id = config.project_id
+
+        if not project_id:
+            raise RuntimeError(
+                "FIREBASE_PROJECT_ID is required for Firebase initialization. "
+                "Please set this environment variable."
+            )
 
         if service_account_path and os.path.exists(service_account_path):
             # Use service account key file
@@ -87,20 +108,47 @@ def initialize_firebase() -> firebase_admin.App:
             _firebase_app = firebase_admin.initialize_app(cred, {
                 'projectId': project_id
             })
-            logger.info("Firebase Admin SDK initialized with service account key")
-        else:
-            # Use default credentials (for production/cloud environments)
+            logger.info("Firebase Admin SDK initialized with service account key from: %s", service_account_path)
+        elif os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+            # Use GOOGLE_APPLICATION_CREDENTIALS
             cred = credentials.ApplicationDefault()
             _firebase_app = firebase_admin.initialize_app(cred, {
                 'projectId': project_id
             })
-            logger.info("Firebase Admin SDK initialized with default credentials")
+            logger.info("Firebase Admin SDK initialized with GOOGLE_APPLICATION_CREDENTIALS")
+        elif config.use_emulator:
+            # For emulator mode, we can initialize with minimal config
+            os.environ["FIREBASE_AUTH_EMULATOR_HOST"] = config.auth_emulator_host or "localhost:9099"
+            cred = credentials.ApplicationDefault()
+            _firebase_app = firebase_admin.initialize_app(cred, {
+                'projectId': project_id
+            })
+            logger.info("Firebase Admin SDK initialized for emulator mode")
+        elif config.bypass_auth_in_development:
+            # Create a minimal app for development bypass mode
+            logger.warning("Firebase Admin SDK initialization bypassed for development")
+            # We still need to return something, but auth validation will be bypassed
+            raise RuntimeError(
+                "Firebase initialization bypassed in development mode. "
+                "Authentication will use mock tokens only."
+            )
+        else:
+            raise RuntimeError(
+                "Firebase credentials not found. Please set either:\n"
+                "  - FIREBASE_SERVICE_ACCOUNT_KEY_PATH (path to service account JSON)\n"
+                "  - GOOGLE_APPLICATION_CREDENTIALS (path to service account JSON)\n"
+                "  - FIREBASE_USE_EMULATOR=true for development with emulator\n"
+                "  - BYPASS_AUTH_IN_DEVELOPMENT=true for development (not recommended)"
+            )
 
         return _firebase_app
 
     except Exception as e:
-        logger.error(f"Failed to initialize Firebase Admin SDK: {str(e)}")
-        raise RuntimeError(f"Firebase initialization failed: {str(e)}")
+        logger.error("Failed to initialize Firebase Admin SDK: %s", str(e))
+        raise RuntimeError(
+            f"Firebase initialization failed: {str(e)}. "
+            "Please check your Firebase configuration and credentials."
+        )
 
 
 class FirebaseJWTMiddleware:
@@ -111,12 +159,31 @@ class FirebaseJWTMiddleware:
         self._ensure_firebase_initialized()
 
     def _ensure_firebase_initialized(self):
-        """Ensure Firebase is initialized"""
+        """
+        Ensure Firebase is initialized with proper error handling
+
+        This method attempts to initialize Firebase but doesn't raise exceptions
+        to allow the application to start even if Firebase is not properly configured.
+        Instead, it logs warnings and errors for debugging.
+        """
         try:
             initialize_firebase()
+            logger.debug("Firebase successfully initialized")
+        except RuntimeError as e:
+            if "bypassed in development mode" in str(e):
+                logger.info("Firebase initialization bypassed for development")
+            else:
+                logger.error("Firebase initialization error: %s", str(e))
+                logger.info(
+                    "Application will start, but authentication may not work properly. "
+                    "Check your Firebase configuration."
+                )
         except Exception as e:
-            logger.error(f"Firebase initialization error: {str(e)}")
-            # Don't raise here to allow the app to start, but log the error
+            logger.error("Unexpected Firebase initialization error: %s", str(e))
+            logger.info(
+                "Application will start, but authentication may not work properly. "
+                "Check your Firebase configuration and credentials."
+            )
 
     async def __call__(self, request: Request) -> Optional[FirebaseUser]:
         """

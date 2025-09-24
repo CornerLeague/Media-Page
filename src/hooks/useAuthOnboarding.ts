@@ -299,15 +299,22 @@ export function useAuthOnboarding(): UseAuthOnboardingResult {
         return null;
       }
 
-      // Redirect unauthenticated users to sign-in
+      // Don't redirect unauthenticated users - let onboarding routes handle them
       if (flowState === 'unauthenticated') {
-        return '/auth/sign-in';
+        return null;
       }
 
-      // Redirect users who need onboarding
+      // Don't redirect if user is on auth page or onboarding pages - let route guards handle them
+      const currentPath = window.location.pathname;
+      if (currentPath === '/auth/sign-in' || currentPath.startsWith('/onboarding/')) {
+        return null;
+      }
+
+      // Redirect authenticated users who need onboarding only if they're not already there
       if (flowState === 'onboarding' && authState.onboarding.status) {
         const currentStep = authState.onboarding.status.currentStep || 1;
-        return `/onboarding/step/${currentStep}`;
+        const targetPath = `/onboarding/step/${currentStep}`;
+        return currentPath !== targetPath ? targetPath : null;
       }
 
       return null;

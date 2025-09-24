@@ -52,7 +52,7 @@ export const TopNavBar = () => {
 
         {!isLoading ? (
           isAuthenticated ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-testid="user-profile">
               {user?.displayName && (
                 <span className="text-sm font-medium text-foreground hidden sm:inline">
                   Welcome, {user.displayName}

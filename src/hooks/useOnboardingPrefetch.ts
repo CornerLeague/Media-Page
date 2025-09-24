@@ -39,55 +39,41 @@ export function useOnboardingPrefetch({
   // Prefetch preferences data
   const prefetchPreferences = () => {
     if (!enabled || !isAuthenticated) return;
-
-    setTimeout(() => {
-      queryClient.prefetchQuery({
-        ...apiQueries.getUserPreferences(),
-        staleTime: 5 * 60 * 1000,
-      });
-    }, prefetchDelay);
+    // TODO: Add getUserPreferences API method when available
+    // For now, this function is a placeholder for future implementation
   };
 
   // Prefetch dashboard data for completion step
   const prefetchDashboardData = () => {
     if (!enabled || !isAuthenticated) return;
-
-    setTimeout(() => {
-      // Prefetch user feed data
-      queryClient.prefetchQuery({
-        ...apiQueries.getPersonalizedFeed(),
-        staleTime: 2 * 60 * 1000, // 2 minutes for fresh content
-      });
-
-      // Prefetch user analytics
-      queryClient.prefetchQuery({
-        ...apiQueries.getUserAnalytics(),
-        staleTime: 10 * 60 * 1000, // 10 minutes
-      });
-    }, prefetchDelay);
+    // TODO: Add getPersonalizedFeed and getUserAnalytics API methods when available
+    // For now, this function is a placeholder for future implementation
   };
 
   // Auto-prefetch based on current onboarding state
   useEffect(() => {
     if (!enabled) return;
 
-    const localStatus = getLocalOnboardingStatus();
+    // TODO: Re-enable auto-prefetch when local storage data format is aligned with API expectations
+    // Currently disabled because local storage uses string IDs but API expects UUIDs
 
-    // If user has selected sports, prefetch teams
-    if (localStatus?.selectedSports && localStatus.selectedSports.length > 0) {
-      const sportIds = localStatus.selectedSports.map(s => s.sportId);
-      prefetchTeamsForSports(sportIds);
-    }
+    // const localStatus = getLocalOnboardingStatus();
 
-    // If user has selected teams, prefetch preferences
-    if (localStatus?.selectedTeams && localStatus.selectedTeams.length > 0) {
-      prefetchPreferences();
-    }
+    // // If user has selected sports, prefetch teams
+    // if (localStatus?.selectedSports && localStatus.selectedSports.length > 0) {
+    //   const sportIds = localStatus.selectedSports.map(s => s.sportId);
+    //   prefetchTeamsForSports(sportIds);
+    // }
 
-    // If user has set preferences, prefetch dashboard data
-    if (localStatus?.preferences) {
-      prefetchDashboardData();
-    }
+    // // If user has selected teams, prefetch preferences
+    // if (localStatus?.selectedTeams && localStatus.selectedTeams.length > 0) {
+    //   prefetchPreferences();
+    // }
+
+    // // If user has set preferences, prefetch dashboard data
+    // if (localStatus?.preferences) {
+    //   prefetchDashboardData();
+    // }
   }, [enabled, isAuthenticated]);
 
   return {

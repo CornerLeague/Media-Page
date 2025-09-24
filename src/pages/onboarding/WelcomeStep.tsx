@@ -8,9 +8,11 @@ import { useSessionRecovery } from "@/hooks/useSessionRecovery";
 import { reportOnboardingError } from "@/lib/error-reporting";
 import { SyncStatusIndicator } from "@/components/fallback/OnboardingFallbackUI";
 import { useOnboardingAssetPrefetch } from "@/hooks/useOnboardingPrefetch";
+import { useOnboardingDebug } from "@/hooks/useDebug";
 
 function WelcomeStepComponent() {
   const navigate = useNavigate();
+  const debug = useOnboardingDebug(1, 'WelcomeStep');
   const {
     syncStatus,
     hasUnsyncedData,
@@ -23,12 +25,29 @@ function WelcomeStepComponent() {
   useOnboardingAssetPrefetch();
 
   const handleGetStarted = async () => {
+    debug.logOnboardingAction('get_started_clicked', {
+      syncStatus,
+      hasUnsyncedData
+    });
+
     try {
       // Save step 1 completion
       saveStepProgress(1, { completed: true });
 
+      debug.logOnboardingAction('step_completed', {
+        step: 1,
+        action: 'navigate_to_step_2'
+      });
+
       navigate("/onboarding/step/2");
     } catch (error) {
+      debug.reportOnboardingError(
+        'Failed to complete welcome step',
+        error instanceof Error ? error : new Error(String(error)),
+        { action: 'get_started', syncStatus, hasUnsyncedData }
+      );
+
+      // Also report to the original system for backwards compatibility
       reportOnboardingError(
         1,
         'Failed to complete welcome step',

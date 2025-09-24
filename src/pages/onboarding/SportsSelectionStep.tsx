@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,10 +28,10 @@ import { toast } from "@/components/ui/use-toast";
 import { GripVertical, Check, AlertCircle } from "lucide-react";
 import { OnboardingLayout } from "./OnboardingLayout";
 import { createApiQueryClient, type OnboardingSport, apiClient } from "@/lib/api-client";
+import { useOnboardingPrefetch } from "@/hooks/useOnboardingPrefetch";
 import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { AVAILABLE_SPORTS } from "@/data/sports";
 import { updateLocalOnboardingStep, getLocalOnboardingStatus } from "@/lib/onboarding-storage";
-import { useOnboardingPrefetch } from "@/hooks/useOnboardingPrefetch";
 import { cn } from "@/lib/utils";
 
 interface SportItem extends OnboardingSport {
@@ -174,6 +174,9 @@ export function SportsSelectionStep() {
     isAuthenticated ? { getIdToken, isAuthenticated: true, userId: user?.uid } : undefined
   );
 
+  // Set up prefetching hooks
+  const { prefetchTeamsForSports } = useOnboardingPrefetch();
+
   // Fetch sports data with fallback
   const {
     data: sportsData,
@@ -198,21 +201,25 @@ export function SportsSelectionStep() {
     }
   }, [error]);
 
-  // Convert existing sports data to API format as fallback
-  const fallbackSportsData: OnboardingSport[] = AVAILABLE_SPORTS.map(sport => ({
-    id: sport.id,
-    name: sport.name,
-    icon: sport.icon || '🏃',
-    hasTeams: sport.hasTeams,
-    isPopular: ['nfl', 'nba', 'mlb', 'nhl'].includes(sport.id),
-  }));
+  // Memoize fallback sports data to prevent infinite re-renders
+  const fallbackSportsData = useMemo<OnboardingSport[]>(() =>
+    AVAILABLE_SPORTS.map(sport => ({
+      id: sport.id,
+      name: sport.name,
+      icon: sport.icon || '🏃',
+      hasTeams: sport.hasTeams,
+      isPopular: ['nfl', 'nba', 'mlb', 'nhl'].includes(sport.id),
+    }))
+  , []);
 
-  // Use API data if available, otherwise use fallback
-  const activeSportsData = sportsData || fallbackSportsData;
+  // Use API data if available, otherwise use fallback - memoized to prevent infinite re-renders
+  const activeSportsData = useMemo(() =>
+    Array.isArray(sportsData) ? sportsData : fallbackSportsData
+  , [sportsData, fallbackSportsData]);
 
   // Initialize sports state when data loads
   useEffect(() => {
-    if (activeSportsData) {
+    if (activeSportsData && Array.isArray(activeSportsData)) {
       // Try to restore previous selections from localStorage
       const localStatus = getLocalOnboardingStatus();
       const previousSelections = localStatus?.selectedSports || [];
@@ -426,7 +433,7 @@ export function SportsSelectionStep() {
     navigate("/onboarding/step/3");
   };
 
-  if (isLoading && !activeSportsData.length) {
+  if (isLoading && (!activeSportsData || !activeSportsData.length)) {
     return (
       <OnboardingLayout
         step={2}
@@ -444,7 +451,7 @@ export function SportsSelectionStep() {
   }
 
   // Error state when API fails and no fallback data
-  if (error && !activeSportsData.length) {
+  if (error && (!activeSportsData || !activeSportsData.length)) {
     return (
       <OnboardingLayout
         step={2}
@@ -455,7 +462,7 @@ export function SportsSelectionStep() {
         completedSteps={1}
       >
         <div className="text-center py-12">
-          <p className="text-red-600 dark:text-red-400">
+          <p className="text-red-600 dark:text-red-400" data-testid="error-message">
             Error loading sports. Please try again.
           </p>
         </div>
@@ -464,7 +471,7 @@ export function SportsSelectionStep() {
   }
 
   // Empty state
-  if (activeSportsData.length === 0) {
+  if (!activeSportsData || activeSportsData.length === 0) {
     return (
       <OnboardingLayout
         step={2}

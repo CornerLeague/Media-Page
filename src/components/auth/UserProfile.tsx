@@ -33,8 +33,8 @@ export function UserProfile() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-2 h-auto p-2">
-          <Avatar className="w-8 h-8">
+        <Button variant="ghost" className="flex items-center gap-2 h-auto p-2" data-testid="user-profile-trigger">
+          <Avatar className="w-8 h-8" data-testid="user-avatar">
             <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User'} />
             <AvatarFallback>
               {(user.displayName?.[0] || user.email?.[0] || 'U').toUpperCase()}

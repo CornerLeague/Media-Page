@@ -53,6 +53,11 @@ export default defineConfig({
 
     /* Set viewport size */
     viewport: { width: 1280, height: 720 },
+
+    /* Set test mode flags for onboarding routes */
+    extraHTTPHeaders: {
+      'X-Test-Mode': 'true'
+    },
   },
 
   /* Configure projects for major browsers */

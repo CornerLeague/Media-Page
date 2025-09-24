@@ -133,7 +133,7 @@ export function CompletionStep() {
         </div>
 
         {/* Summary card */}
-        <Card className="bg-primary/5 border-primary/20">
+        <Card className="bg-primary/5 border-primary/20" data-testid="summary-section">
           <CardContent className="p-6">
             <div className="text-center space-y-4">
               <h3 className="font-display font-semibold text-lg text-foreground">

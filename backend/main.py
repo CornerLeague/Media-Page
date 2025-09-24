@@ -12,6 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from backend.api.middleware.logging import (
+    PerformanceMonitoringMiddleware,
+    setup_structured_logging
+)
+
 from backend.api.middleware.auth import (
     firebase_auth_required,
     firebase_auth_optional,
@@ -37,14 +42,11 @@ from backend.api.routers.onboarding import router as onboarding_router
 from backend.database import get_async_session
 from backend.api.schemas.auth import FirebaseUser, UserProfile, OnboardingStatus
 from backend.api.exceptions import register_exception_handlers
-from backend.config.firebase import validate_firebase_environment
+from backend.config.firebase import validate_firebase_environment, validate_startup_configuration
 from backend.models.users import User
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# Configure structured logging
+setup_structured_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -55,20 +57,62 @@ async def lifespan(app: FastAPI):
     logger.info("Starting FastAPI application")
 
     try:
-        # Initialize Firebase
-        initialize_firebase()
-        logger.info("Firebase Admin SDK initialized successfully")
+        # Comprehensive startup configuration validation
+        logger.info("Validating Firebase configuration...")
+        startup_validation = validate_startup_configuration(raise_on_failure=False)
 
-        # Validate configuration
-        config_status = validate_firebase_environment()
-        if not config_status["valid"]:
-            logger.error(f"Firebase configuration invalid: {config_status['error']}")
+        if not startup_validation["valid"]:
+            logger.error("Firebase configuration validation failed!")
+            if startup_validation.get("issues"):
+                logger.error("Critical Issues:")
+                for issue in startup_validation["issues"]:
+                    logger.error(f"  - {issue}")
+
+            if startup_validation.get("warnings"):
+                logger.warning("Configuration Warnings:")
+                for warning in startup_validation["warnings"]:
+                    logger.warning(f"  - {warning}")
+
+            if startup_validation.get("suggestions"):
+                logger.info("Suggestions:")
+                for suggestion in startup_validation["suggestions"]:
+                    logger.info(f"  - {suggestion}")
+
+            # Log environment info for troubleshooting
+            logger.info(f"Environment file exists: {startup_validation.get('environment_file_exists')}")
+            logger.info(f"Working directory: {startup_validation.get('current_working_directory')}")
+
+            # In development, allow startup with warnings but log them
+            # In production, you might want to raise an exception here
+            if os.getenv("ENVIRONMENT") == "production":
+                logger.error("Refusing to start in production with invalid Firebase configuration")
+                raise RuntimeError(startup_validation.get("startup_error_message", "Firebase configuration validation failed"))
+            else:
+                logger.warning("Starting application despite configuration issues (development mode)")
         else:
-            logger.info("Firebase configuration validated successfully")
+            logger.info("Firebase configuration validation passed")
+
+        # Initialize Firebase
+        try:
+            initialize_firebase()
+            logger.info("Firebase Admin SDK initialized successfully")
+        except RuntimeError as e:
+            if "bypassed in development mode" in str(e):
+                logger.info("Firebase initialization bypassed for development")
+            else:
+                logger.error(f"Firebase initialization failed: {str(e)}")
+                if os.getenv("ENVIRONMENT") == "production":
+                    raise
+                else:
+                    logger.warning("Continuing without Firebase in development mode")
 
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")
-        # You might want to raise here in production to prevent startup with bad config
+        # Re-raise in production, warn in development
+        if os.getenv("ENVIRONMENT") == "production":
+            raise
+        else:
+            logger.warning("Continuing startup despite errors in development mode")
 
     yield
 
@@ -99,6 +143,9 @@ app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(",")
 )
+
+# Add performance monitoring and logging middleware
+app.add_middleware(PerformanceMonitoringMiddleware)
 
 # Register exception handlers
 register_exception_handlers(app)
@@ -411,7 +458,21 @@ async def firebase_health_check() -> Dict[str, Any]:
 
 @app.get("/health/config")
 async def config_health_check() -> Dict[str, Any]:
-    """Configuration validation health check"""
+    """
+    Comprehensive configuration validation health check
+
+    This endpoint performs a complete validation of the Firebase configuration
+    and provides detailed diagnostic information for troubleshooting.
+
+    Returns:
+        Detailed configuration status and troubleshooting information
+    """
+    return validate_startup_configuration()
+
+
+@app.get("/health/config/basic")
+async def basic_config_health_check() -> Dict[str, Any]:
+    """Basic configuration validation health check (legacy endpoint)"""
     return validate_firebase_environment()
 
 

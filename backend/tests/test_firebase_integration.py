@@ -393,7 +393,7 @@ class TestFirebaseConfigValidation:
             "FIREBASE_PROJECT_ID": "test-project",
             "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/credentials.json"
         }):
-            result = validate_firebase_environment()
+            result = validate_firebase_environment(reinitialize=True)
 
             assert result["valid"] is True
             assert result["project_id"] == "test-project"
@@ -403,7 +403,7 @@ class TestFirebaseConfigValidation:
         from backend.config.firebase import validate_firebase_environment
 
         with patch.dict(os.environ, {}, clear=True):
-            result = validate_firebase_environment()
+            result = validate_firebase_environment(reinitialize=True, load_dotenv_file=False)
 
             assert result["valid"] is False
             assert "error" in result

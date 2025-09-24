@@ -38,8 +38,8 @@ class SportsSelectionPageObject {
 
   async waitForPageLoad() {
     await this.page.waitForLoadState('networkidle');
-    // First wait for the main content to load
-    await this.page.waitForSelector('main', { timeout: 10000 });
+    // First wait for the main content to load - using correct testid
+    await this.page.waitForSelector('[data-testid="main-content"]', { timeout: 10000 });
     // Then wait for either sports cards or loading indicator
     try {
       await this.page.waitForSelector('[data-testid^="sport-card-"], [data-testid="loading-sports"]', { timeout: 15000 });

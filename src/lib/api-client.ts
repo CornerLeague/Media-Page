@@ -2,8 +2,11 @@
  * API Client for Corner League Media Backend Integration
  *
  * This module provides a typed interface for FastAPI backend integration with Firebase authentication.
- * It includes Firebase JWT authentication, error handling, and request/response types.
+ * It includes Firebase JWT authentication, error handling, retry logic, and request/response types.
  */
+
+import { ApiRetryManager, RetryConfig } from '@/lib/api-retry';
+import { logApiRequest, logApiResponse, logApiError } from '@/lib/debug-utilities';
 
 // User Preferences Type Definition
 export interface UserPreferences {
@@ -328,9 +331,17 @@ export interface CompleteOnboardingRequest {
 export class ApiClient {
   private baseUrl: string;
   private firebaseAuth: FirebaseAuthContext | null = null;
+  private retryManager: ApiRetryManager;
+  private enableRetries: boolean;
 
-  constructor(baseUrl = API_CONFIG.BASE_URL) {
+  constructor(
+    baseUrl = API_CONFIG.BASE_URL,
+    retryConfig?: Partial<RetryConfig>,
+    enableRetries = true
+  ) {
     this.baseUrl = `${baseUrl}/api/${API_CONFIG.VERSION}`;
+    this.retryManager = new ApiRetryManager(retryConfig);
+    this.enableRetries = enableRetries;
   }
 
   // Firebase Authentication Methods
@@ -355,7 +366,7 @@ export class ApiClient {
     }
   }
 
-  // Core HTTP Methods
+  // Core HTTP Methods with Retry Support
   private async request<T>(
     endpoint: string,
     options: {
@@ -364,6 +375,8 @@ export class ApiClient {
       params?: Record<string, string | number | boolean>;
       skipAuth?: boolean;
       timeout?: number;
+      retryConfig?: Partial<RetryConfig>;
+      skipRetry?: boolean;
     } = {}
   ): Promise<T> {
     const {
@@ -372,6 +385,8 @@ export class ApiClient {
       params,
       skipAuth = false,
       timeout = API_CONFIG.TIMEOUT,
+      retryConfig,
+      skipRetry = false,
     } = options;
 
     // Build URL with query parameters
@@ -382,70 +397,134 @@ export class ApiClient {
       });
     }
 
-    // Build headers
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    // Create the actual request function
+    const makeRequest = async (): Promise<T> => {
+      const startTime = Date.now();
 
-    // Add Firebase authentication if not skipped and user is signed in
-    if (!skipAuth && this.firebaseAuth?.isAuthenticated) {
+      // Log API request for debugging
+      logApiRequest(method, endpoint, body);
+
+      // Build headers (fresh for each attempt to handle token refresh)
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add Firebase authentication if not skipped and user is signed in
+      if (!skipAuth && this.firebaseAuth?.isAuthenticated) {
+        try {
+          const token = await this.getAuthToken();
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+        } catch (error) {
+          console.error('Failed to set authorization header:', error);
+          const authError = new ApiClientError({
+            code: 'AUTH_ERROR',
+            message: 'Authentication failed',
+            timestamp: new Date().toISOString(),
+          }, 401);
+
+          logApiError(method, endpoint, authError, Date.now() - startTime);
+          throw authError;
+        }
+      }
+
+      // Create request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
       try {
-        const token = await this.getAuthToken();
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
+        const response = await fetch(url.toString(), {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData: ApiError = await response.json().catch(() => ({
+            code: 'HTTP_ERROR',
+            message: `HTTP ${response.status}: ${response.statusText}`,
+            timestamp: new Date().toISOString(),
+          }));
+
+          const apiError = new ApiClientError(errorData, response.status);
+
+          // Enhance error with retry information
+          (apiError as any).isRetryable = response.status >= 500 || response.status === 429;
+          (apiError as any).retryAfter = response.headers.get('Retry-After');
+
+          // Log API error for debugging
+          logApiError(method, endpoint, apiError, Date.now() - startTime);
+
+          throw apiError;
+        }
+
+        const result = await response.json();
+
+        // Log successful API response for debugging
+        logApiResponse(method, endpoint, result, Date.now() - startTime);
+
+        // Handle both wrapped and direct response formats
+        if (result && typeof result === 'object' && 'data' in result) {
+          // Wrapped format: { data: T, message?: string, status: string, timestamp: string }
+          return result.data;
+        } else {
+          // Direct format: T (raw data)
+          return result;
         }
       } catch (error) {
-        console.error('Failed to set authorization header:', error);
-        throw new Error('Authentication failed');
+        clearTimeout(timeoutId);
+
+        if (error instanceof ApiClientError) {
+          // Log already handled ApiClientError
+          logApiError(method, endpoint, error, Date.now() - startTime);
+          throw error;
+        }
+
+        if (error instanceof Error && error.name === 'AbortError') {
+          const timeoutError = new ApiClientError({
+            code: 'TIMEOUT',
+            message: `Request timed out after ${timeout}ms`,
+            timestamp: new Date().toISOString(),
+          }, 408);
+
+          logApiError(method, endpoint, timeoutError, Date.now() - startTime);
+          throw timeoutError;
+        }
+
+        // Network or other errors
+        const networkError = new ApiClientError({
+          code: 'NETWORK_ERROR',
+          message: error instanceof Error ? error.message : 'Network request failed',
+          timestamp: new Date().toISOString(),
+        }, 0);
+
+        logApiError(method, endpoint, networkError, Date.now() - startTime);
+
+        (networkError as any).isRetryable = true;
+        throw networkError;
       }
-    }
+    };
 
-    // Create request with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      const response = await fetch(url.toString(), {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
+    // Use retry logic if enabled and not explicitly skipped
+    if (this.enableRetries && !skipRetry) {
+      return this.retryManager.executeWithRetry(makeRequest, {
+        ...retryConfig,
+        onRetry: (attempt, error) => {
+          console.log(`API request retry ${attempt} for ${method} ${endpoint}:`, error.message);
+          // Call custom retry callback if provided
+          retryConfig?.onRetry?.(attempt, error);
+        },
+        onMaxRetries: (error) => {
+          console.error(`API request failed after max retries for ${method} ${endpoint}:`, error);
+          retryConfig?.onMaxRetries?.(error);
+        },
       });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData: ApiError = await response.json().catch(() => ({
-          code: 'HTTP_ERROR',
-          message: `HTTP ${response.status}: ${response.statusText}`,
-          timestamp: new Date().toISOString(),
-        }));
-
-        throw new ApiClientError(errorData, response.status);
-      }
-
-      const result: ApiResponse<T> = await response.json();
-      return result.data;
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (error instanceof ApiClientError) {
-        throw error;
-      }
-
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new ApiClientError({
-          code: 'TIMEOUT',
-          message: `Request timed out after ${timeout}ms`,
-          timestamp: new Date().toISOString(),
-        }, 408);
-      }
-
-      throw new ApiClientError({
-        code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Network request failed',
-        timestamp: new Date().toISOString(),
-      }, 0);
+    } else {
+      return makeRequest();
     }
   }
 
@@ -539,6 +618,54 @@ export class ApiClient {
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return this.request<{ status: string; timestamp: string }>('/health', {
       skipAuth: true,
+    });
+  }
+
+  // Retry and Circuit Breaker Management
+  enableRetry(enable: boolean = true): void {
+    this.enableRetries = enable;
+  }
+
+  getCircuitBreakerStatus(): { state: string; failures: number } {
+    return this.retryManager.getCircuitBreakerStatus();
+  }
+
+  resetCircuitBreaker(): void {
+    this.retryManager.resetCircuitBreaker();
+  }
+
+  // Request with custom retry configuration
+  async requestWithRetry<T>(
+    endpoint: string,
+    options: {
+      method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+      body?: any;
+      params?: Record<string, string | number | boolean>;
+      skipAuth?: boolean;
+      timeout?: number;
+    } = {},
+    retryConfig?: Partial<RetryConfig>
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      retryConfig,
+    });
+  }
+
+  // Request without retry (for operations that should not be retried)
+  async requestWithoutRetry<T>(
+    endpoint: string,
+    options: {
+      method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+      body?: any;
+      params?: Record<string, string | number | boolean>;
+      skipAuth?: boolean;
+      timeout?: number;
+    } = {}
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      skipRetry: true,
     });
   }
 }

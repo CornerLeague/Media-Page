@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { TopNavBar } from "@/components/TopNavBar";
@@ -19,6 +19,7 @@ import { TeamSection } from "@/components/TeamSection";
 import { ContentFeed } from "@/components/ContentFeed";
 import { AuthLoadingScreen, AuthErrorScreen } from "@/components/auth/AuthLoadingStates";
 import { apiClient, createApiQueryClient, type OnboardingStatusResponse } from "@/lib/api-client";
+import { DebugProvider } from "@/components/debug/DebugProvider";
 import { useEffect, useState } from "react";
 
 // Create React Query client with optimized settings
@@ -189,24 +190,46 @@ function AuthLoading() {
 
 // Enhanced sign in page with integrated auth flow
 function SignInPage() {
-  const { flowState, isAuthenticated } = useAuthOnboarding();
+  const { flowState, isAuthenticated, isOnboarded } = useAuthOnboarding();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Handle sign-in success - the useAuthOnboarding hook will handle navigation
+  // Handle sign-in success with proper navigation logic
   const handleSignInSuccess = async () => {
+    // Check if user was redirected from onboarding
+    const state = location.state as any;
+    if (state?.returnToOnboarding && state?.from?.pathname?.includes('/onboarding')) {
+      // Return to the onboarding step they were trying to access
+      navigate(state.from.pathname, { replace: true });
+      return;
+    }
+
     // The hook will automatically handle navigation based on onboarding status
-    // No manual navigation needed here
+    // No manual navigation needed here - let useAuthOnboarding auto-redirect handle it
   };
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && flowState === 'authenticated') {
-      // User is already fully authenticated, redirect to dashboard
-      return;
+      // Check if user came from onboarding and should return there
+      const state = location.state as any;
+      if (state?.returnToOnboarding && state?.from?.pathname?.includes('/onboarding')) {
+        navigate(state.from.pathname, { replace: true });
+        return;
+      }
+      // Otherwise redirect to dashboard
+      navigate('/', { replace: true });
+    } else if (isAuthenticated && flowState === 'onboarding') {
+      // User is authenticated but needs onboarding
+      const state = location.state as any;
+      if (state?.returnToOnboarding && state?.from?.pathname?.includes('/onboarding')) {
+        navigate(state.from.pathname, { replace: true });
+      }
     }
-  }, [isAuthenticated, flowState]);
+  }, [isAuthenticated, flowState, navigate, location.state]);
 
   // Show loading screen during auth flow transitions
-  if (flowState === 'checking' || flowState === 'onboarding') {
+  if (flowState === 'checking' || (flowState === 'onboarding' && isAuthenticated)) {
     return <AuthLoadingScreen stage={flowState} />;
   }
 
@@ -224,7 +247,10 @@ function SignInPage() {
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Sign in to access your personalized team dashboard, news feed, and exclusive content.
+            {location.state?.returnToOnboarding
+              ? "Please sign in to continue setting up your sports preferences."
+              : "Sign in to access your personalized team dashboard, news feed, and exclusive content."
+            }
           </p>
 
           <FirebaseSignIn onSuccess={handleSignInSuccess} />
@@ -246,7 +272,12 @@ function SignInPage() {
 // Enhanced app router with integrated auth flow
 function AppRouter() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         {/* Main dashboard route - requires full authentication and onboarding */}
         <Route
@@ -290,46 +321,64 @@ function AppRouter() {
 
 // Smart redirect component that uses auth state
 function AuthAwareRedirect() {
-  const { isAuthenticated, isOnboarded, flowState } = useAuthOnboarding();
+  const { isAuthenticated, isOnboarded, flowState, onboardingStatus } = useAuthOnboarding();
+  const location = useLocation();
 
   // Show loading while determining auth state
   if (flowState === 'initializing' || flowState === 'checking') {
     return <AuthLoadingScreen stage={flowState} />;
   }
 
+  // Prevent redirect loops by checking current path
+  const currentPath = location.pathname;
+
+  // Don't redirect if already on appropriate pages
+  if (currentPath === '/auth/sign-in' || currentPath.startsWith('/onboarding/') || currentPath === '/') {
+    // User is already on the right path, let the specific route handlers manage them
+    return <Navigate to="/onboarding/step/1" replace />;
+  }
+
   // Redirect based on auth state
   if (!isAuthenticated) {
-    return <Navigate to="/auth/sign-in" replace />;
+    // For unauthenticated users, redirect to onboarding to start their journey
+    return <Navigate to="/onboarding/step/1" replace />;
   }
 
   if (isAuthenticated && !isOnboarded) {
-    return <Navigate to="/onboarding/step/1" replace />;
+    // Redirect to the appropriate onboarding step
+    const step = onboardingStatus?.currentStep || 1;
+    return <Navigate to={`/onboarding/step/${step}`} replace />;
   }
 
   if (isAuthenticated && isOnboarded) {
     return <Navigate to="/" replace />;
   }
 
-  // Fallback
-  return <Navigate to="/auth/sign-in" replace />;
+  // Fallback - start onboarding for unknown states
+  return <Navigate to="/onboarding/step/1" replace />;
 }
 
 // Main App component
 function App() {
   return (
-    <FirebaseAuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AppRouter />
-          <Toaster />
-        </ThemeProvider>
-      </QueryClientProvider>
-    </FirebaseAuthProvider>
+    <DebugProvider
+      enableKeyboardShortcuts={true}
+      enableGlobalErrorBoundary={true}
+    >
+      <FirebaseAuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <AppRouter />
+            <Toaster />
+          </ThemeProvider>
+        </QueryClientProvider>
+      </FirebaseAuthProvider>
+    </DebugProvider>
   );
 }
 

@@ -154,6 +154,44 @@ class TestOnboardingTeamsEndpoint:
         data = response.json()
         assert len(data["teams"]) == 4
 
+    async def test_get_teams_url_encoded_comma_separated_ids(self, test_client: AsyncClient, test_sports: list[Sport], test_teams: list[Team]):
+        """Test teams endpoint with URL-encoded comma-separated sport IDs (the specific failing case)."""
+        # This tests the exact failing URL format: sport_ids=nfl%2Cnba%2Cmlb%2Cnhl
+        sport_ids_encoded = f"{test_sports[0].id}%2C{test_sports[1].id}"
+
+        response = await test_client.get(
+            f"/api/v1/onboarding/teams?sport_ids={sport_ids_encoded}"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["teams"]) == 4
+        assert data["total"] == 4
+
+        # Verify teams belong to requested sports
+        sport_ids = {team["sport_id"] for team in data["teams"]}
+        expected_ids = {str(test_sports[0].id), str(test_sports[1].id)}
+        assert sport_ids == expected_ids
+
+    async def test_get_teams_mixed_format_compatibility(self, test_client: AsyncClient, test_sports: list[Sport], test_teams: list[Team]):
+        """Test teams endpoint maintains backward compatibility with array format."""
+        football_id = str(test_sports[0].id)
+        basketball_id = str(test_sports[1].id)
+
+        # Test traditional array format (?sport_ids=uuid1&sport_ids=uuid2)
+        response = await test_client.get(
+            f"/api/v1/onboarding/teams?sport_ids={football_id}&sport_ids={basketball_id}"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["teams"]) == 4
+
+        # Verify teams belong to requested sports
+        sport_ids = {team["sport_id"] for team in data["teams"]}
+        expected_ids = {football_id, basketball_id}
+        assert sport_ids == expected_ids
+
     async def test_get_teams_invalid_sport_id(self, test_client: AsyncClient):
         """Test teams endpoint with invalid sport ID format."""
         response = await test_client.get(

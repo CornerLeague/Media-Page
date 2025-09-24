@@ -12,8 +12,9 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.api.middleware.auth import AuthError
+from backend.api.middleware.logging import ContextualLogger
 
-logger = logging.getLogger(__name__)
+logger = ContextualLogger(__name__)
 
 
 class APIError(Exception):
@@ -141,7 +142,11 @@ async def auth_exception_handler(request: Request, exc: AuthError) -> JSONRespon
         JSONResponse with authentication error details
     """
     logger.warning(
-        f"Authentication error: {exc.error_code} - {exc.detail} for {request.url}"
+        request,
+        f"Authentication error: {exc.error_code} - {exc.detail}",
+        error_code=exc.error_code,
+        error_detail=exc.detail,
+        event="authentication_error"
     )
 
     error_response = create_error_response(
@@ -178,7 +183,12 @@ async def api_exception_handler(request: Request, exc: APIError) -> JSONResponse
         JSONResponse with API error details
     """
     logger.error(
-        f"API error: {exc.error_code} - {exc.message} for {request.url}"
+        request,
+        f"API error: {exc.error_code} - {exc.message}",
+        exception=exc,
+        error_code=exc.error_code,
+        error_details=exc.details,
+        event="api_error"
     )
 
     error_response = create_error_response(
@@ -211,7 +221,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         JSONResponse with HTTP error details
     """
     logger.warning(
-        f"HTTP error: {exc.status_code} - {exc.detail} for {request.url}"
+        request,
+        f"HTTP error: {exc.status_code} - {exc.detail}",
+        status_code=exc.status_code,
+        error_detail=exc.detail,
+        event="http_error"
     )
 
     # Map HTTP status codes to error codes
@@ -268,7 +282,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         JSONResponse with validation error details
     """
     logger.warning(
-        f"Validation error for {request.url}: {exc.errors()}"
+        request,
+        f"Validation error: {len(exc.errors())} validation issues",
+        validation_errors=exc.errors(),
+        event="validation_error"
     )
 
     # Format validation errors
@@ -310,9 +327,11 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     Returns:
         JSONResponse with generic error details
     """
-    logger.error(
-        f"Unexpected error for {request.url}: {str(exc)}",
-        exc_info=True
+    logger.critical(
+        request,
+        f"Unexpected error: {str(exc)}",
+        exception=exc,
+        event="unexpected_error"
     )
 
     error_response = create_error_response(

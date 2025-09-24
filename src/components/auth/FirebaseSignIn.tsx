@@ -85,7 +85,7 @@ export function FirebaseSignIn({ onSuccess }: FirebaseSignInProps) {
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto sign-in-card" data-testid="sign-in-form">
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold" data-testid="auth-form-title">
           {isSignUp ? 'Create Account' : 'Sign In'}

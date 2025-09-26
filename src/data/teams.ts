@@ -1,4 +1,5 @@
 import { Team } from '@/types';
+import { SPORT_UUID_MAPPING } from '@/lib/sport-id-mapper';
 
 export const TEAMS: Team[] = [
   // NFL Teams
@@ -6,7 +7,7 @@ export const TEAMS: Team[] = [
     id: 'chiefs',
     name: 'Chiefs',
     market: 'Kansas City',
-    sportId: 'nfl',
+    sportId: SPORT_UUID_MAPPING['football'], // Use UUID for backend compatibility
     league: 'NFL',
     logo: '🏈',
     primaryColor: '#E31837',
@@ -17,7 +18,7 @@ export const TEAMS: Team[] = [
     id: 'cowboys',
     name: 'Cowboys',
     market: 'Dallas',
-    sportId: 'nfl',
+    sportId: SPORT_UUID_MAPPING['football'], // Use UUID for backend compatibility
     league: 'NFL',
     logo: '🏈',
     primaryColor: '#041E42',
@@ -28,7 +29,7 @@ export const TEAMS: Team[] = [
     id: 'patriots',
     name: 'Patriots',
     market: 'New England',
-    sportId: 'nfl',
+    sportId: SPORT_UUID_MAPPING['football'], // Use UUID for backend compatibility
     league: 'NFL',
     logo: '🏈',
     primaryColor: '#002244',
@@ -39,7 +40,7 @@ export const TEAMS: Team[] = [
     id: 'packers',
     name: 'Packers',
     market: 'Green Bay',
-    sportId: 'nfl',
+    sportId: SPORT_UUID_MAPPING['football'], // Use UUID for backend compatibility
     league: 'NFL',
     logo: '🏈',
     primaryColor: '#203731',
@@ -50,7 +51,7 @@ export const TEAMS: Team[] = [
     id: '49ers',
     name: '49ers',
     market: 'San Francisco',
-    sportId: 'nfl',
+    sportId: SPORT_UUID_MAPPING['football'], // Use UUID for backend compatibility
     league: 'NFL',
     logo: '🏈',
     primaryColor: '#AA0000',
@@ -63,7 +64,7 @@ export const TEAMS: Team[] = [
     id: 'lakers',
     name: 'Lakers',
     market: 'Los Angeles',
-    sportId: 'nba',
+    sportId: SPORT_UUID_MAPPING['basketball'], // Use UUID for backend compatibility
     league: 'NBA',
     logo: '🏀',
     primaryColor: '#552583',
@@ -74,7 +75,7 @@ export const TEAMS: Team[] = [
     id: 'warriors',
     name: 'Warriors',
     market: 'Golden State',
-    sportId: 'nba',
+    sportId: SPORT_UUID_MAPPING['basketball'], // Use UUID for backend compatibility
     league: 'NBA',
     logo: '🏀',
     primaryColor: '#1D428A',
@@ -85,7 +86,7 @@ export const TEAMS: Team[] = [
     id: 'celtics',
     name: 'Celtics',
     market: 'Boston',
-    sportId: 'nba',
+    sportId: SPORT_UUID_MAPPING['basketball'], // Use UUID for backend compatibility
     league: 'NBA',
     logo: '🏀',
     primaryColor: '#007A33',
@@ -96,7 +97,7 @@ export const TEAMS: Team[] = [
     id: 'heat',
     name: 'Heat',
     market: 'Miami',
-    sportId: 'nba',
+    sportId: SPORT_UUID_MAPPING['basketball'], // Use UUID for backend compatibility
     league: 'NBA',
     logo: '🏀',
     primaryColor: '#98002E',
@@ -107,7 +108,7 @@ export const TEAMS: Team[] = [
     id: 'bulls',
     name: 'Bulls',
     market: 'Chicago',
-    sportId: 'nba',
+    sportId: SPORT_UUID_MAPPING['basketball'], // Use UUID for backend compatibility
     league: 'NBA',
     logo: '🏀',
     primaryColor: '#CE1141',
@@ -120,7 +121,7 @@ export const TEAMS: Team[] = [
     id: 'yankees',
     name: 'Yankees',
     market: 'New York',
-    sportId: 'mlb',
+    sportId: SPORT_UUID_MAPPING['baseball'], // Use UUID for backend compatibility
     league: 'MLB',
     logo: '⚾',
     primaryColor: '#132448',
@@ -131,7 +132,7 @@ export const TEAMS: Team[] = [
     id: 'dodgers',
     name: 'Dodgers',
     market: 'Los Angeles',
-    sportId: 'mlb',
+    sportId: SPORT_UUID_MAPPING['baseball'], // Use UUID for backend compatibility
     league: 'MLB',
     logo: '⚾',
     primaryColor: '#005A9C',
@@ -142,7 +143,7 @@ export const TEAMS: Team[] = [
     id: 'red-sox',
     name: 'Red Sox',
     market: 'Boston',
-    sportId: 'mlb',
+    sportId: SPORT_UUID_MAPPING['baseball'], // Use UUID for backend compatibility
     league: 'MLB',
     logo: '⚾',
     primaryColor: '#BD3039',
@@ -153,7 +154,7 @@ export const TEAMS: Team[] = [
     id: 'giants',
     name: 'Giants',
     market: 'San Francisco',
-    sportId: 'mlb',
+    sportId: SPORT_UUID_MAPPING['baseball'], // Use UUID for backend compatibility
     league: 'MLB',
     logo: '⚾',
     primaryColor: '#FD5A1E',
@@ -164,7 +165,7 @@ export const TEAMS: Team[] = [
     id: 'cubs',
     name: 'Cubs',
     market: 'Chicago',
-    sportId: 'mlb',
+    sportId: SPORT_UUID_MAPPING['baseball'], // Use UUID for backend compatibility
     league: 'MLB',
     logo: '⚾',
     primaryColor: '#0E3386',
@@ -177,7 +178,7 @@ export const TEAMS: Team[] = [
     id: 'rangers',
     name: 'Rangers',
     market: 'New York',
-    sportId: 'nhl',
+    sportId: SPORT_UUID_MAPPING['hockey'], // Use UUID for backend compatibility
     league: 'NHL',
     logo: '🏒',
     primaryColor: '#0038A8',
@@ -188,7 +189,7 @@ export const TEAMS: Team[] = [
     id: 'bruins',
     name: 'Bruins',
     market: 'Boston',
-    sportId: 'nhl',
+    sportId: SPORT_UUID_MAPPING['hockey'], // Use UUID for backend compatibility
     league: 'NHL',
     logo: '🏒',
     primaryColor: '#FFB81C',
@@ -199,7 +200,7 @@ export const TEAMS: Team[] = [
     id: 'blackhawks',
     name: 'Blackhawks',
     market: 'Chicago',
-    sportId: 'nhl',
+    sportId: SPORT_UUID_MAPPING['hockey'], // Use UUID for backend compatibility
     league: 'NHL',
     logo: '🏒',
     primaryColor: '#CF0A2C',
@@ -210,7 +211,7 @@ export const TEAMS: Team[] = [
     id: 'penguins',
     name: 'Penguins',
     market: 'Pittsburgh',
-    sportId: 'nhl',
+    sportId: SPORT_UUID_MAPPING['hockey'], // Use UUID for backend compatibility
     league: 'NHL',
     logo: '🏒',
     primaryColor: '#000000',
@@ -221,7 +222,7 @@ export const TEAMS: Team[] = [
     id: 'maple-leafs',
     name: 'Maple Leafs',
     market: 'Toronto',
-    sportId: 'nhl',
+    sportId: SPORT_UUID_MAPPING['hockey'], // Use UUID for backend compatibility
     league: 'NHL',
     logo: '🏒',
     primaryColor: '#003E7E',
@@ -234,7 +235,7 @@ export const TEAMS: Team[] = [
     id: 'lafc',
     name: 'LAFC',
     market: 'Los Angeles',
-    sportId: 'mls',
+    sportId: SPORT_UUID_MAPPING['soccer'], // Use UUID for backend compatibility
     league: 'MLS',
     logo: '⚽',
     primaryColor: '#000000',
@@ -245,7 +246,7 @@ export const TEAMS: Team[] = [
     id: 'inter-miami',
     name: 'Inter Miami CF',
     market: 'Miami',
-    sportId: 'mls',
+    sportId: SPORT_UUID_MAPPING['soccer'], // Use UUID for backend compatibility
     league: 'MLS',
     logo: '⚽',
     primaryColor: '#F7B5CD',
@@ -256,7 +257,7 @@ export const TEAMS: Team[] = [
     id: 'atlanta-united',
     name: 'Atlanta United FC',
     market: 'Atlanta',
-    sportId: 'mls',
+    sportId: SPORT_UUID_MAPPING['soccer'], // Use UUID for backend compatibility
     league: 'MLS',
     logo: '⚽',
     primaryColor: '#80001C',
@@ -267,7 +268,7 @@ export const TEAMS: Team[] = [
     id: 'seattle-sounders',
     name: 'Sounders FC',
     market: 'Seattle',
-    sportId: 'mls',
+    sportId: SPORT_UUID_MAPPING['soccer'], // Use UUID for backend compatibility
     league: 'MLS',
     logo: '⚽',
     primaryColor: '#5D9741',
@@ -278,7 +279,7 @@ export const TEAMS: Team[] = [
     id: 'nycfc',
     name: 'NYC FC',
     market: 'New York City',
-    sportId: 'mls',
+    sportId: SPORT_UUID_MAPPING['soccer'], // Use UUID for backend compatibility
     league: 'MLS',
     logo: '⚽',
     primaryColor: '#6CABDD',
@@ -291,7 +292,7 @@ export const TEAMS: Team[] = [
     id: 'alabama',
     name: 'Crimson Tide',
     market: 'Alabama',
-    sportId: 'college-football',
+    sportId: SPORT_UUID_MAPPING['college-football'], // Use UUID for backend compatibility
     league: 'SEC',
     logo: '🏈',
     primaryColor: '#9E1B32',
@@ -302,7 +303,7 @@ export const TEAMS: Team[] = [
     id: 'michigan',
     name: 'Wolverines',
     market: 'Michigan',
-    sportId: 'college-football',
+    sportId: SPORT_UUID_MAPPING['college-football'], // Use UUID for backend compatibility
     league: 'Big Ten',
     logo: '🏈',
     primaryColor: '#00274C',
@@ -313,7 +314,7 @@ export const TEAMS: Team[] = [
     id: 'georgia',
     name: 'Bulldogs',
     market: 'Georgia',
-    sportId: 'college-football',
+    sportId: SPORT_UUID_MAPPING['college-football'], // Use UUID for backend compatibility
     league: 'SEC',
     logo: '🏈',
     primaryColor: '#BA0C2F',
@@ -324,7 +325,7 @@ export const TEAMS: Team[] = [
     id: 'ohio-state',
     name: 'Buckeyes',
     market: 'Ohio State',
-    sportId: 'college-football',
+    sportId: SPORT_UUID_MAPPING['college-football'], // Use UUID for backend compatibility
     league: 'Big Ten',
     logo: '🏈',
     primaryColor: '#BB0000',
@@ -335,7 +336,7 @@ export const TEAMS: Team[] = [
     id: 'clemson',
     name: 'Tigers',
     market: 'Clemson',
-    sportId: 'college-football',
+    sportId: SPORT_UUID_MAPPING['college-football'], // Use UUID for backend compatibility
     league: 'ACC',
     logo: '🏈',
     primaryColor: '#F56600',

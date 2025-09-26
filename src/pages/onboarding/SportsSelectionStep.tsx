@@ -32,6 +32,7 @@ import { useOnboardingPrefetch } from "@/hooks/useOnboardingPrefetch";
 import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { AVAILABLE_SPORTS } from "@/data/sports";
 import { updateLocalOnboardingStep, getLocalOnboardingStatus } from "@/lib/onboarding-storage";
+import { SPORT_UUID_MAPPING, sportUuidToSlug } from "@/lib/sport-id-mapper";
 import { cn } from "@/lib/utils";
 
 interface SportItem extends OnboardingSport {
@@ -203,13 +204,17 @@ export function SportsSelectionStep() {
 
   // Memoize fallback sports data to prevent infinite re-renders
   const fallbackSportsData = useMemo<OnboardingSport[]>(() =>
-    AVAILABLE_SPORTS.map(sport => ({
-      id: sport.id,
-      name: sport.name,
-      icon: sport.icon || '🏃',
-      hasTeams: sport.hasTeams,
-      isPopular: ['nfl', 'nba', 'mlb', 'nhl'].includes(sport.id),
-    }))
+    AVAILABLE_SPORTS.map(sport => {
+      // Convert UUID back to slug for isPopular check
+      const slug = sportUuidToSlug(sport.id);
+      return {
+        id: sport.id, // Keep UUID as id for backend compatibility
+        name: sport.name,
+        icon: sport.icon || '🏃',
+        hasTeams: sport.hasTeams,
+        isPopular: slug ? ['football', 'basketball', 'baseball', 'hockey'].includes(slug) : false,
+      };
+    })
   , []);
 
   // Use API data if available, otherwise use fallback - memoized to prevent infinite re-renders

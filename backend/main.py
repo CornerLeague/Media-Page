@@ -16,6 +16,7 @@ from backend.api.middleware.logging import (
     PerformanceMonitoringMiddleware,
     setup_structured_logging
 )
+from backend.api.middleware.validation import ValidationResponseMiddleware
 
 from backend.api.middleware.auth import (
     firebase_auth_required,
@@ -146,6 +147,9 @@ app.add_middleware(
 
 # Add performance monitoring and logging middleware
 app.add_middleware(PerformanceMonitoringMiddleware)
+
+# Add validation response middleware
+app.add_middleware(ValidationResponseMiddleware)
 
 # Register exception handlers
 register_exception_handlers(app)

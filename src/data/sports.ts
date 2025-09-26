@@ -1,8 +1,9 @@
 import { Sport } from '@/types';
+import { SPORT_UUID_MAPPING } from '@/lib/sport-id-mapper';
 
 export const AVAILABLE_SPORTS: Sport[] = [
   {
-    id: 'nfl',
+    id: SPORT_UUID_MAPPING['football'], // Use UUID for backend compatibility
     name: 'NFL',
     hasTeams: true,
     icon: '🏈',
@@ -11,13 +12,13 @@ export const AVAILABLE_SPORTS: Sport[] = [
       {
         id: 'nfl',
         name: 'National Football League',
-        sportId: 'nfl',
+        sportId: SPORT_UUID_MAPPING['football'],
         teams: [], // Will be populated from teams data
       }
     ]
   },
   {
-    id: 'nba',
+    id: SPORT_UUID_MAPPING['basketball'], // Use UUID for backend compatibility
     name: 'NBA',
     hasTeams: true,
     icon: '🏀',
@@ -26,13 +27,13 @@ export const AVAILABLE_SPORTS: Sport[] = [
       {
         id: 'nba',
         name: 'National Basketball Association',
-        sportId: 'nba',
+        sportId: SPORT_UUID_MAPPING['basketball'],
         teams: [],
       }
     ]
   },
   {
-    id: 'mlb',
+    id: SPORT_UUID_MAPPING['baseball'], // Use UUID for backend compatibility
     name: 'MLB',
     hasTeams: true,
     icon: '⚾',
@@ -41,13 +42,13 @@ export const AVAILABLE_SPORTS: Sport[] = [
       {
         id: 'mlb',
         name: 'Major League Baseball',
-        sportId: 'mlb',
+        sportId: SPORT_UUID_MAPPING['baseball'],
         teams: [],
       }
     ]
   },
   {
-    id: 'nhl',
+    id: SPORT_UUID_MAPPING['hockey'], // Use UUID for backend compatibility
     name: 'NHL',
     hasTeams: true,
     icon: '🏒',
@@ -56,13 +57,13 @@ export const AVAILABLE_SPORTS: Sport[] = [
       {
         id: 'nhl',
         name: 'National Hockey League',
-        sportId: 'nhl',
+        sportId: SPORT_UUID_MAPPING['hockey'],
         teams: [],
       }
     ]
   },
   {
-    id: 'mls',
+    id: SPORT_UUID_MAPPING['soccer'], // Use UUID for backend compatibility
     name: 'MLS',
     hasTeams: true,
     icon: '⚽',
@@ -71,13 +72,13 @@ export const AVAILABLE_SPORTS: Sport[] = [
       {
         id: 'mls',
         name: 'Major League Soccer',
-        sportId: 'mls',
+        sportId: SPORT_UUID_MAPPING['soccer'],
         teams: [],
       }
     ]
   },
   {
-    id: 'college-football',
+    id: SPORT_UUID_MAPPING['college-football'], // Use UUID for backend compatibility
     name: 'College Football',
     hasTeams: true,
     icon: '🏈',
@@ -86,58 +87,58 @@ export const AVAILABLE_SPORTS: Sport[] = [
       {
         id: 'sec',
         name: 'SEC',
-        sportId: 'college-football',
+        sportId: SPORT_UUID_MAPPING['college-football'],
         teams: [],
       },
       {
         id: 'big-ten',
         name: 'Big Ten',
-        sportId: 'college-football',
+        sportId: SPORT_UUID_MAPPING['college-football'],
         teams: [],
       },
       {
         id: 'acc',
         name: 'ACC',
-        sportId: 'college-football',
+        sportId: SPORT_UUID_MAPPING['college-football'],
         teams: [],
       },
       {
         id: 'big-12',
         name: 'Big 12',
-        sportId: 'college-football',
+        sportId: SPORT_UUID_MAPPING['college-football'],
         teams: [],
       },
       {
         id: 'pac-12',
         name: 'Pac-12',
-        sportId: 'college-football',
+        sportId: SPORT_UUID_MAPPING['college-football'],
         teams: [],
       }
     ]
   },
   {
-    id: 'college-basketball',
+    id: SPORT_UUID_MAPPING['college-basketball'], // Use UUID for backend compatibility
     name: 'College Basketball',
-    hasTeams: true,
+    hasTeams: false, // According to the mapping, college basketball has 0 teams
     icon: '🏀',
     popularTeams: ['duke', 'north-carolina', 'kansas', 'kentucky', 'gonzaga'],
     leagues: [
       {
         id: 'acc-basketball',
         name: 'ACC',
-        sportId: 'college-basketball',
+        sportId: SPORT_UUID_MAPPING['college-basketball'],
         teams: [],
       },
       {
         id: 'big-east',
         name: 'Big East',
-        sportId: 'college-basketball',
+        sportId: SPORT_UUID_MAPPING['college-basketball'],
         teams: [],
       },
       {
         id: 'sec-basketball',
         name: 'SEC',
-        sportId: 'college-basketball',
+        sportId: SPORT_UUID_MAPPING['college-basketball'],
         teams: [],
       }
     ]

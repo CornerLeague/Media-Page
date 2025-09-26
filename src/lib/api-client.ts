@@ -7,6 +7,7 @@
 
 import { ApiRetryManager, RetryConfig } from '@/lib/api-retry';
 import { logApiRequest, logApiResponse, logApiError } from '@/lib/debug-utilities';
+import { getSportUUIDs, sportSlugsToUuids } from '@/lib/sport-id-mapper';
 
 // User Preferences Type Definition
 export interface UserPreferences {
@@ -596,8 +597,16 @@ export class ApiClient {
   }
 
   async getOnboardingTeams(sportIds: string[]): Promise<OnboardingTeam[]> {
+    // Convert sport slugs to UUIDs for backend compatibility
+    const sportUuids = sportSlugsToUuids(sportIds);
+
+    if (sportUuids.length === 0) {
+      console.warn('No valid sport UUIDs found for slugs:', sportIds);
+      return [];
+    }
+
     return this.request<OnboardingTeam[]>('/onboarding/teams', {
-      params: { sport_ids: sportIds.join(',') },
+      params: { sport_ids: sportUuids.join(',') },
     });
   }
 
@@ -780,12 +789,17 @@ export const createApiQueryClient = (firebaseAuth?: FirebaseAuthContext) => {
       staleTime: 30 * 60 * 1000, // 30 minutes (static data)
     }),
 
-    getOnboardingTeams: (sportIds: string[]) => ({
-      queryKey: ['onboarding', 'teams', sportIds],
-      queryFn: () => apiClient.getOnboardingTeams(sportIds),
-      staleTime: 30 * 60 * 1000, // 30 minutes (static data)
-      enabled: sportIds.length > 0,
-    }),
+    getOnboardingTeams: (sportIds: string[]) => {
+      // Convert to UUIDs for consistent cache keys
+      const sportUuids = sportSlugsToUuids(sportIds);
+
+      return {
+        queryKey: ['onboarding', 'teams', sportUuids],
+        queryFn: () => apiClient.getOnboardingTeams(sportIds),
+        staleTime: 30 * 60 * 1000, // 30 minutes (static data)
+        enabled: sportIds.length > 0,
+      };
+    },
   };
 };
 

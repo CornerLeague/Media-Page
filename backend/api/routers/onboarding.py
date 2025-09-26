@@ -25,6 +25,11 @@ from backend.api.schemas.onboarding import (
     OnboardingTeamsListResponse
 )
 from backend.api.middleware.logging import APIEndpointLogger
+from backend.api.middleware.validation import (
+    create_business_logic_validation_error_response,
+    create_multi_field_validation_error_response
+)
+from backend.api.exceptions import SportIDValidationError, OnboardingValidationError
 
 logger = APIEndpointLogger("onboarding")
 
@@ -36,7 +41,7 @@ UUID_PATTERN = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 
 def validate_and_sanitize_sport_ids(sport_ids: Union[List[str], str]) -> List[str]:
     """
-    Validate and sanitize sport IDs parameter input
+    Validate and sanitize sport IDs parameter input with standardized error responses
 
     Args:
         sport_ids: Sport UUIDs as array or comma-separated string
@@ -45,9 +50,78 @@ def validate_and_sanitize_sport_ids(sport_ids: Union[List[str], str]) -> List[st
         List of validated UUID strings
 
     Raises:
-        HTTPException: If validation fails with detailed error message
+        SportIDValidationError: If sport ID format validation fails
+        OnboardingValidationError: If input validation fails for other reasons
     """
+
+    def _raise_invalid_characters_error(invalid_input: str, detected_chars: str = ""):
+        """Raise standardized error for invalid characters"""
+        char_msg = f" Detected: {detected_chars}" if detected_chars else ""
+        suggestions = [
+            "Remove any special characters except hyphens and commas",
+            "Ensure only valid UUID characters are used",
+            "Check for accidentally pasted content or injection attempts",
+            "Verify sport IDs from the /onboarding/sports endpoint"
+        ]
+        examples = [
+            "2350948d-f6d4-4a85-9358-b76ed505aea2",
+            "498127a1-e061-4386-89ce-a5f00692004c,23df2010-047e-417a-a036-ee6c2e7b5717"
+        ]
+        raise OnboardingValidationError(
+            field_name="sport_ids",
+            message=f"Sport IDs contain invalid characters.{char_msg}",
+            invalid_value=invalid_input,
+            suggestions=suggestions,
+            examples=examples
+        )
+
+    def _raise_empty_input_error():
+        """Raise standardized error for empty input"""
+        suggestions = [
+            "Provide at least one valid sport UUID",
+            "Get available sport IDs from GET /onboarding/sports",
+            "Use proper URL parameter format",
+            "Ensure frontend is sending sport selection data"
+        ]
+        examples = [
+            "Single sport: ?sport_ids=2350948d-f6d4-4a85-9358-b76ed505aea2",
+            "Multiple sports (array): ?sport_ids=2350948d-f6d4-4a85-9358-b76ed505aea2&sport_ids=498127a1-e061-4386-89ce-a5f00692004c",
+            "Multiple sports (comma): ?sport_ids=2350948d-f6d4-4a85-9358-b76ed505aea2,498127a1-e061-4386-89ce-a5f00692004c"
+        ]
+        raise OnboardingValidationError(
+            field_name="sport_ids",
+            message="At least one valid sport ID is required to retrieve team data.",
+            invalid_value=None,
+            suggestions=suggestions,
+            examples=examples
+        )
+
+    def _raise_type_error(invalid_type: str, invalid_value: Any):
+        """Raise standardized error for wrong data types"""
+        suggestions = [
+            "Ensure sport IDs are passed as strings",
+            "Convert numeric values to UUID strings",
+            "Check frontend data serialization",
+            "Verify API request format matches endpoint specification"
+        ]
+        examples = [
+            "Correct: '2350948d-f6d4-4a85-9358-b76ed505aea2'",
+            "Correct: ['2350948d-f6d4-4a85-9358-b76ed505aea2', '498127a1-e061-4386-89ce-a5f00692004c']",
+            f"Incorrect: {invalid_value} ({invalid_type})"
+        ]
+        raise OnboardingValidationError(
+            field_name="sport_ids",
+            message=f"Sport IDs must be strings, received {invalid_type}.",
+            invalid_value=str(invalid_value),
+            suggestions=suggestions,
+            examples=examples
+        )
+
     try:
+        # Handle None input explicitly
+        if sport_ids is None:
+            _raise_empty_input_error()
+
         # Convert sport_ids to list of strings, handling both array and comma-separated formats
         sport_id_strings = []
 
@@ -56,15 +130,20 @@ def validate_and_sanitize_sport_ids(sport_ids: Union[List[str], str]) -> List[st
             # First, URL decode the string to handle encoded commas (%2C)
             decoded_sport_ids = unquote(sport_ids).strip()
 
+            # Check for completely empty input
+            if not decoded_sport_ids:
+                _raise_empty_input_error()
+
             # Basic input sanitization - remove any potentially harmful characters
             # Allow only UUID-valid characters, commas, and whitespace
+            original_input = decoded_sport_ids
             sanitized_input = re.sub(r'[^a-fA-F0-9\-,\s]', '', decoded_sport_ids)
 
-            if sanitized_input != decoded_sport_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid characters detected in sport IDs. Only UUID format (hexadecimal digits, hyphens) and commas are allowed."
-                )
+            if sanitized_input != original_input:
+                # Identify what characters were removed for better error message
+                invalid_chars = set(original_input) - set(sanitized_input)
+                detected_chars = "".join(sorted(invalid_chars))
+                _raise_invalid_characters_error(original_input, detected_chars)
 
             # Split on commas if present
             if ',' in sanitized_input:
@@ -72,25 +151,27 @@ def validate_and_sanitize_sport_ids(sport_ids: Union[List[str], str]) -> List[st
             else:
                 sport_id_strings = [sanitized_input] if sanitized_input else []
         else:
+            # Handle list/array input
+            if not hasattr(sport_ids, '__iter__'):
+                # Not iterable at all
+                _raise_type_error(type(sport_ids).__name__, sport_ids)
+
             # List of strings - may contain comma-separated values in individual items
             for sport_id_str in sport_ids:
                 if not isinstance(sport_id_str, str):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"All sport IDs must be strings, got: {type(sport_id_str).__name__}"
-                    )
+                    _raise_type_error(type(sport_id_str).__name__, sport_id_str)
 
                 # URL decode each item
                 decoded_sport_id = unquote(sport_id_str).strip()
 
                 # Basic input sanitization
+                original_input = decoded_sport_id
                 sanitized_input = re.sub(r'[^a-fA-F0-9\-,\s]', '', decoded_sport_id)
 
-                if sanitized_input != decoded_sport_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Invalid characters detected in sport IDs. Only UUID format (hexadecimal digits, hyphens) and commas are allowed."
-                    )
+                if sanitized_input != original_input:
+                    invalid_chars = set(original_input) - set(sanitized_input)
+                    detected_chars = "".join(sorted(invalid_chars))
+                    _raise_invalid_characters_error(original_input, detected_chars)
 
                 # Handle comma-separated values within individual list items
                 if ',' in sanitized_input:
@@ -106,28 +187,49 @@ def validate_and_sanitize_sport_ids(sport_ids: Union[List[str], str]) -> List[st
             if sport_id_str and sport_id_str not in seen:
                 # Validate UUID format before adding
                 if not UUID_PATTERN.match(sport_id_str):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Invalid UUID format for sport ID: '{sport_id_str}'. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                    )
+                    # Provide specific guidance based on the type of UUID format error
+                    if len(sport_id_str) < 36:
+                        context = "(too short - UUIDs must be exactly 36 characters including hyphens)"
+                    elif len(sport_id_str) > 36:
+                        context = "(too long - UUIDs must be exactly 36 characters including hyphens)"
+                    elif sport_id_str.count('-') != 4:
+                        context = "(incorrect hyphen placement - UUIDs require exactly 4 hyphens)"
+                    else:
+                        context = "(contains invalid hexadecimal characters)"
+
+                    raise SportIDValidationError(sport_id_str, context)
+
                 seen.add(sport_id_str)
                 validated_sport_ids.append(sport_id_str)
 
+        # Final check for empty result
         if not validated_sport_ids:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least one valid sport ID is required. Provide UUIDs in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            )
+            _raise_empty_input_error()
 
         return validated_sport_ids
 
-    except HTTPException:
+    except (SportIDValidationError, OnboardingValidationError):
         raise
     except Exception as e:
-        logger.error(f"Unexpected error during sport ID validation: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid sport IDs parameter format. Expected UUID(s) in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        # Log unexpected errors for debugging
+        logger_instance = logger if hasattr(logger, 'error') else logging.getLogger(__name__)
+        logger_instance.error(f"Unexpected error during sport ID validation: {str(e)}")
+
+        # Provide a structured error response even for unexpected errors
+        raise OnboardingValidationError(
+            field_name="sport_ids",
+            message="An unexpected error occurred while validating sport IDs.",
+            invalid_value=str(sport_ids),
+            suggestions=[
+                "Verify sport IDs are in valid UUID format",
+                "Check request format matches API specification",
+                "Try with a single sport ID first",
+                "Contact support if issue persists"
+            ],
+            examples=[
+                "2350948d-f6d4-4a85-9358-b76ed505aea2",
+                "498127a1-e061-4386-89ce-a5f00692004c"
+            ]
         )
 
 
@@ -231,6 +333,16 @@ async def get_onboarding_teams(
 
         return result
 
+    except (SportIDValidationError, OnboardingValidationError) as e:
+        duration_ms = (time.time() - start_time) * 1000
+        logger.log_validation_error(
+            request,
+            f"Validation error: {e.message}",
+            error_details=e.details,
+            duration_ms=duration_ms
+        )
+        # Let the API error handler convert this to a proper JSON response
+        raise
     except HTTPException as e:
         duration_ms = (time.time() - start_time) * 1000
         logger.log_validation_error(

@@ -153,6 +153,7 @@ class UserProfile(BaseSchema, IDMixin, TimestampMixin):
         return self.onboarding_completed_at is not None
 
     class Config:
+        from_attributes = True
         schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",

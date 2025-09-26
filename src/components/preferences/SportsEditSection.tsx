@@ -34,6 +34,7 @@ import { createApiQueryClient, type OnboardingSport } from '@/lib/api-client';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { AVAILABLE_SPORTS } from '@/data/sports';
 import { type SportPreference } from '@/hooks/usePreferences';
+import { sportUuidToSlug } from '@/lib/sport-id-mapper';
 import { cn } from '@/lib/utils';
 
 interface SportItem extends OnboardingSport {
@@ -188,13 +189,17 @@ export function SportsEditSection({
   }, [apiError]);
 
   // Fallback sports data
-  const fallbackSportsData: OnboardingSport[] = AVAILABLE_SPORTS.map(sport => ({
-    id: sport.id,
-    name: sport.name,
-    icon: sport.icon || '🏃',
-    hasTeams: sport.hasTeams,
-    isPopular: ['nfl', 'nba', 'mlb', 'nhl'].includes(sport.id),
-  }));
+  const fallbackSportsData: OnboardingSport[] = AVAILABLE_SPORTS.map(sport => {
+    // Convert UUID back to slug for isPopular check
+    const slug = sportUuidToSlug(sport.id);
+    return {
+      id: sport.id, // Keep UUID as id for backend compatibility
+      name: sport.name,
+      icon: sport.icon || '🏃',
+      hasTeams: sport.hasTeams,
+      isPopular: slug ? ['football', 'basketball', 'baseball', 'hockey'].includes(slug) : false,
+    };
+  });
 
   const activeSportsData = availableSportsData || fallbackSportsData;
 

@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.api.middleware.auth import AuthError
 from backend.api.middleware.logging import ContextualLogger
+from backend.api.middleware.validation import create_standardized_validation_error_response
 
 logger = ContextualLogger(__name__)
 
@@ -89,6 +90,63 @@ class ServiceUnavailableError(APIError):
             error_code="SERVICE_UNAVAILABLE",
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             details={"service": service}
+        )
+
+
+class OnboardingValidationError(APIError):
+    """Onboarding-specific validation error"""
+
+    def __init__(
+        self,
+        field_name: str,
+        message: str,
+        invalid_value: Any = None,
+        suggestions: Optional[list] = None,
+        examples: Optional[list] = None
+    ):
+        details = {
+            "field": field_name,
+            "invalid_value": invalid_value
+        }
+        if suggestions:
+            details["suggestions"] = suggestions
+        if examples:
+            details["examples"] = examples
+
+        super().__init__(
+            message=message,
+            error_code="ONBOARDING_VALIDATION_ERROR",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            details=details
+        )
+
+
+class SportIDValidationError(OnboardingValidationError):
+    """Sport ID validation error"""
+
+    def __init__(self, invalid_sport_id: str, context: str = ""):
+        examples = [
+            "2350948d-f6d4-4a85-9358-b76ed505aea2",  # Football
+            "498127a1-e061-4386-89ce-a5f00692004c",  # Basketball
+            "23df2010-047e-417a-a036-ee6c2e7b5717"   # Baseball
+        ]
+
+        suggestions = [
+            "Ensure sport IDs are valid UUIDs with 32 hexadecimal characters",
+            "Format: 8-4-4-4-12 characters separated by hyphens",
+            "Use only lowercase hexadecimal digits (0-9, a-f)",
+            "Get valid sport IDs from the /onboarding/sports endpoint"
+        ]
+
+        context_msg = f" {context}" if context else ""
+        message = f"Sport ID '{invalid_sport_id}' is not a valid UUID{context_msg}"
+
+        super().__init__(
+            field_name="sport_ids",
+            message=message,
+            invalid_value=invalid_sport_id,
+            suggestions=suggestions,
+            examples=examples
         )
 
 
@@ -272,14 +330,14 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """
-    Handle request validation errors
+    Handle request validation errors with standardized format
 
     Args:
         request: FastAPI request object
         exc: Request validation error
 
     Returns:
-        JSONResponse with validation error details
+        JSONResponse with standardized validation error details
     """
     logger.warning(
         request,
@@ -288,25 +346,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         event="validation_error"
     )
 
-    # Format validation errors
-    validation_errors = []
-    for error in exc.errors():
-        validation_errors.append({
-            "field": " -> ".join(str(loc) for loc in error["loc"]),
-            "message": error["msg"],
-            "type": error["type"],
-            "input": error.get("input")
-        })
-
-    error_response = create_error_response(
-        error_code="VALIDATION_ERROR",
-        message="Request validation failed",
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        details={
-            "validation_errors": validation_errors,
-            "path": str(request.url.path),
-            "method": request.method
-        },
+    # Use standardized validation error response format
+    error_response = create_standardized_validation_error_response(
+        request=request,
+        validation_errors=exc.errors(),
         request_id=getattr(request.state, "request_id", None)
     )
 
